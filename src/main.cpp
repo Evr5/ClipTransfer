@@ -22,15 +22,27 @@ void run_server(asio::io_context& io) {
     acceptor.accept(socket);
     std::cout << "Connexion reçue.\n";
 
-    for (;;) {
+    std::thread reader([&socket]() {
         std::array<char, 1024> data;
         std::error_code error;
-        size_t length = socket.read_some(asio::buffer(data), error);
-        if (error) break;
+        while (true) {
+            size_t length = socket.read_some(asio::buffer(data), error);
+            if (error) break;
+            std::cout << "[Reçu] : " << std::string(data.data(), length) << std::endl;
+        }
+    });
 
-        std::cout << "Reçu : " << std::string(data.data(), length) << std::endl;
+    std::string line;
+    std::error_code ec;
+    while (std::getline(std::cin, line)) {
+        asio::write(socket, asio::buffer(line), ec);
+        if (ec) break;
     }
+
+    socket.close();
+    reader.join();
 }
+
 
 std::optional<std::string> discover_server_ip(asio::io_context& io) {
     using namespace asio;
@@ -75,13 +87,26 @@ void run_client(asio::io_context& io) {
         throw std::runtime_error("Connexion TCP échouée");
     }
 
-    std::cout << "Connecté. Tapez du texte à envoyer :\n";
+    std::thread reader([&socket]() {
+        std::array<char, 1024> data;
+        std::error_code error;
+        while (true) {
+            size_t length = socket.read_some(asio::buffer(data), error);
+            if (error) break;
+            std::cout << "[Reçu] : " << std::string(data.data(), length) << std::endl;
+        }
+    });
+
     std::string line;
     while (std::getline(std::cin, line)) {
         asio::write(socket, asio::buffer(line), ec);
         if (ec) break;
     }
+
+    socket.close();
+    reader.join();
 }
+
 
 
 void start_udp_discovery_server(asio::io_context& io) {
