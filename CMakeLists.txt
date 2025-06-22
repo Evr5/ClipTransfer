@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(clip-transfer VERSION 0.1.0 LANGUAGES CXX)
+project(ClipTransfer VERSION 1.0.0 LANGUAGES CXX)
 
 # Options
 option(BUILD_STATIC "Link standard libs statically" OFF)
@@ -55,16 +55,16 @@ endif()
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 # Main executable
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(clip-transfer ${SOURCES})
 
 # External libraries target
 include(${CMAKE_SOURCE_DIR}/cmake/asio.cmake)
 
 # Link external libraries
-target_link_libraries(${PROJECT_NAME} PUBLIC asio)
+target_link_libraries(clip-transfer PUBLIC asio)
 
-# Include directories 
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
+# Include directories
+target_include_directories(clip-transfer PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # Installation
-install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
+install(TARGETS clip-transfer RUNTIME DESTINATION bin)
