@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.15)
 
 project(clip-transfer VERSION 0.1.0 LANGUAGES CXX)
 
-# Add custom CMake modules path (optional, juust need to include the name of the module)
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
 # Options
 option(BUILD_STATIC "Link standard libs statically" OFF)
 option(BUILD_TESTS "Build unit tests" ON)
@@ -61,30 +58,13 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # External libraries target
+include(${CMAKE_SOURCE_DIR}/cmake/asio.cmake)
+
+# Link external libraries
+target_link_libraries(${PROJECT_NAME} PUBLIC asio)
 
 # Include directories 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 # Installation
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
-
-# Unit tests (preparation)
-if(BUILD_TESTS)
-    enable_testing()
-
-    file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS ${TEST_DIR}/*.cpp)
-
-    if(TEST_SOURCES)
-        add_executable(tests ${TEST_SOURCES})
-        target_include_directories(tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
-
-        # Set the binary in build/tests/
-        set_target_properties(tests PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests
-        )
-
-        add_test(NAME basic_test COMMAND ${CMAKE_BINARY_DIR}/tests/tests)
-    else()
-        message(WARNING "No test files found in ${TEST_DIR}")
-    endif()
-endif()
