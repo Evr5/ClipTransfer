@@ -2,6 +2,8 @@
 #include <thread>
 #include <asio.hpp>
 #include <optional>
+#include <unistd.h>
+#include <poll.h>
 
 using asio::ip::tcp;
 
@@ -90,45 +92,80 @@ void run_client(asio::io_context& io) {
         throw std::runtime_error("TCP connection failed");
     }
 
-    std::atomic<bool> disconnected = false;
+    // Mettre le socket en mode non-bloquant
+    socket.non_blocking(true);
 
-    std::thread reader([&socket, &disconnected]() {
+    std::atomic<bool> disconnected = false;
+    std::atomic<bool> stop_input = false;
+
+    // Thread lecture socket
+    std::thread reader([&socket, &disconnected, &stop_input]() {
         std::array<char, 1024> data;
         std::error_code error;
-        while (true) {
-            size_t length = socket.read_some(asio::buffer(data), error);
+        while (!disconnected && !stop_input) {
+            size_t length = 0;
+            try {
+                length = socket.read_some(asio::buffer(data), error);
+            } catch (...) {
+                error = asio::error::operation_aborted;
+            }
+            if (error == asio::error::would_block || error == asio::error::try_again) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                continue;
+            }
             if (error) {
                 disconnected = true;
+                stop_input = true;
                 break;
             }
-            std::cout << "[Received] : " << std::string(data.data(), length) << std::endl;
+            if (length > 0)
+                std::cout << "[Received] : " << std::string(data.data(), length) << std::endl;
         }
     });
 
-    std::string line;
-    while (std::getline(std::cin, line)) {
-        asio::write(socket, asio::buffer(line), ec);
-        if (ec) {
-            disconnected = true;
-            break;
+    // Thread lecture utilisateur non bloquant
+    std::thread input_thread([&socket, &ec, &disconnected, &stop_input]() {
+        std::string line;
+        while (!stop_input && !disconnected) {
+            struct pollfd pfd;
+            pfd.fd = 0; // stdin
+            pfd.events = POLLIN;
+            int ret = poll(&pfd, 1, 100); // timeout 100ms
+            if (ret > 0 && (pfd.revents & POLLIN)) {
+                if (!std::getline(std::cin, line)) {
+                    stop_input = true;
+                    break;
+                }
+                asio::write(socket, asio::buffer(line), ec);
+                if (ec) {
+                    disconnected = true;
+                    break;
+                }
+            }
         }
+        stop_input = true;
+    });
+
+    // Attendre la fin d'un des threads
+    while (!disconnected && !stop_input) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     socket.close();
-    reader.join();
+    stop_input = true;
+    if (input_thread.joinable()) input_thread.join();
+    if (reader.joinable()) reader.join();
 
     if (disconnected) {
         std::cout << "[Client] Disconnected from server. Becoming new server...\n";
-
-        std::thread udp_discovery_thread([&io]() {
-            start_udp_discovery_server(io);
+        asio::io_context new_io;
+        std::thread udp_discovery_thread([&new_io]() {
+            start_udp_discovery_server(new_io);
         });
-        run_server(io);
+        run_server(new_io);
         udp_discovery_thread.join();
     }
 }
-
-
 
 
 void start_udp_discovery_server(asio::io_context& io) {
@@ -169,4 +206,3 @@ int main() {
         std::cerr << "Error : " << e.what() << std::endl;
     }
 }
-
