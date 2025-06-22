@@ -62,7 +62,7 @@ std::optional<std::string> discover_server_ip(asio::io_context& io) {
     ip::udp::endpoint sender_endpoint;
     socket.non_blocking(true);
 
-    for (int i = 0; i < 50; ++i) { // wait max 5 sec
+    for (int i = 0; i < 10; ++i) { // wait max 1 sec
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         asio::error_code ec;
         size_t len = socket.receive_from(buffer(recv_buf), sender_endpoint, 0, ec);
