@@ -17,10 +17,10 @@ std::string get_local_ip() {
 
 void run_server(asio::io_context& io) {
     tcp::acceptor acceptor(io, tcp::endpoint(tcp::v4(), PORT));
-    std::cout << "Mode serveur : en attente de connexion...\n";
+    std::cout << "Server mode : waiting for connection...\n";
     tcp::socket socket(io);
     acceptor.accept(socket);
-    std::cout << "Connexion reçue.\n";
+    std::cout << "Connection received.\n";
 
     std::thread reader([&socket]() {
         std::array<char, 1024> data;
@@ -28,7 +28,7 @@ void run_server(asio::io_context& io) {
         while (true) {
             size_t length = socket.read_some(asio::buffer(data), error);
             if (error) break;
-            std::cout << "[Reçu] : " << std::string(data.data(), length) << std::endl;
+            std::cout << "[Received] : " << std::string(data.data(), length) << std::endl;
         }
     });
 
@@ -73,18 +73,18 @@ std::optional<std::string> discover_server_ip(asio::io_context& io) {
 void run_client(asio::io_context& io) {
     auto ip_opt = discover_server_ip(io);
     if (!ip_opt) {
-        throw std::runtime_error("Aucun serveur détecté sur le réseau local.");
+        throw std::runtime_error("No server detected on the local network.");
     }
 
     std::string SERVER_IP = *ip_opt;
     tcp::socket socket(io);
     tcp::endpoint endpoint(asio::ip::make_address(SERVER_IP), PORT);
-    std::cout << "Connexion au serveur détecté à : " << SERVER_IP << "\n";
+    std::cout << "Connection to detected server at : " << SERVER_IP << "\n";
 
     std::error_code ec;
-    socket.connect(endpoint, ec);
-    if (ec) {
-        throw std::runtime_error("Connexion TCP échouée");
+    std::error_code error = socket.connect(endpoint, ec);
+    if (ec || error) {
+        throw std::runtime_error("TCP connection failed");
     }
 
     std::thread reader([&socket]() {
@@ -93,7 +93,7 @@ void run_client(asio::io_context& io) {
         while (true) {
             size_t length = socket.read_some(asio::buffer(data), error);
             if (error) break;
-            std::cout << "[Reçu] : " << std::string(data.data(), length) << std::endl;
+            std::cout << "[Received] : " << std::string(data.data(), length) << std::endl;
         }
     });
 
@@ -131,20 +131,20 @@ int main() {
     try {
         asio::io_context io;
 
-        // Essayer d'abord comme client
+        // Try first as client
         std::thread try_client([&io]() {
             try {
                 run_client(io);
             } catch (...) {
-                // rien, on laisse tomber, l'autre thread gérera
+                // nothing to do here, we will run the server if client fails
             }
         });
 
-        // Délai pour laisser au client une chance
+        // Delay to allow client to try connecting
         std::this_thread::sleep_for(std::chrono::seconds(2));
 
         if (io.stopped() == false) {
-            std::cout << "Aucun serveur détecté. Lancement en mode serveur.\n";
+            std::cout << "No server detected. Starting in server mode.\n";
             std::thread udp_discovery_thread([&io]() {
                 start_udp_discovery_server(io);
             });
@@ -154,6 +154,6 @@ int main() {
 
         try_client.join();
     } catch (std::exception& e) {
-        std::cerr << "Erreur : " << e.what() << std::endl;
+        std::cerr << "Error : " << e.what() << std::endl;
     }
 }
