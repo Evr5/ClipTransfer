@@ -82,8 +82,8 @@ void run_client(asio::io_context& io) {
     std::cout << "Connection to detected server at : " << SERVER_IP << "\n";
 
     std::error_code ec;
-    std::error_code error = socket.connect(endpoint, ec);
-    if (ec || error) {
+    socket.connect(endpoint, ec);
+    if (ec) {
         throw std::runtime_error("TCP connection failed");
     }
 
