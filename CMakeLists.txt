@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
 
-# === [EDIT HERE TO CHANGE PROJECT NAME] ===
-project(MyProject VERSION 0.1.0 LANGUAGES CXX)
+project(clip-transfer VERSION 0.1.0 LANGUAGES CXX)
 
 # Add custom CMake modules path (optional, juust need to include the name of the module)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-include(fmt)
 
 # Options
 option(BUILD_STATIC "Link standard libs statically" OFF)
@@ -63,7 +61,6 @@ file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # External libraries target
-target_link_libraries(${PROJECT_NAME} PRIVATE fmt::fmt)
 
 # Include directories 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/include)
@@ -79,7 +76,6 @@ if(BUILD_TESTS)
 
     if(TEST_SOURCES)
         add_executable(tests ${TEST_SOURCES})
-        target_link_libraries(tests PRIVATE fmt::fmt)
         target_include_directories(tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
         # Set the binary in build/tests/

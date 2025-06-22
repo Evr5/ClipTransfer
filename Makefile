@@ -1,9 +1,7 @@
 # Directories
 BUILD_DIR := ./build
 STATIC_BUILD_DIR := ./build-static
-OUTPUT_DIR := . # Output directory for binaries (can be changed as needed)
-TEST_DIR := ./tests # Directory for tests (can be changed as needed)
-
+OUTPUT_DIR := .
 # Detect OS
 ifeq ($(OS),Windows_NT)
 	CORES := $(NUMBER_OF_PROCESSORS)
@@ -25,26 +23,19 @@ endif
 all: release
 
 debug:
-	@$(CMAKE) -S . -B $(BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Debug -DTEST_DIR=$(abspath $(TEST_DIR)) -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+	@$(CMAKE) -S . -B $(BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Debug -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 	@$(CMAKE) --build $(BUILD_DIR) -- -j$(CORES)
 
 release:
-	@$(CMAKE) -S . -B $(BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Release -DTEST_DIR=$(abspath $(TEST_DIR)) -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+	@$(CMAKE) -S . -B $(BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Release -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 	@$(CMAKE) --build $(BUILD_DIR) -- -j$(CORES)
 
 static:
-	@$(CMAKE) -S . -B $(STATIC_BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Release -DTEST_DIR=$(abspath $(TEST_DIR)) -DBUILD_STATIC=ON -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+	@$(CMAKE) -S . -B $(STATIC_BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 	@$(CMAKE) --build $(STATIC_BUILD_DIR) -- -j$(CORES)
 
 install:
 	@$(CMAKE) --install $(BUILD_DIR)
-
-test:
-ifeq ($(OS),Windows_NT)
-	@cd $(BUILD_DIR) && $(CTEST) --output-on-failure
-else
-	@cd $(BUILD_DIR) && $(CTEST) --output-on-failure
-endif
 
 clean:
 	@$(CLEAN_CMD)
