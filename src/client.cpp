@@ -53,11 +53,8 @@ void Client::run(asio::io_context& io) {
 
     std::error_code ec;
     std::error_code socketError = socket.connect(endpoint, ec);
-    if (ec) {
+    if (ec || socketError) {
         throw std::runtime_error("TCP connection failed");
-    }
-    if (socketError) {
-        throw std::runtime_error("TCP connection failed: " + socketError.message());
     }
 
     std::atomic<bool> disconnected{false};
