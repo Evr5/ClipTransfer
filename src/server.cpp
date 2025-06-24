@@ -28,10 +28,14 @@ void Server::run(asio::io_context& io) {
     std::vector<std::thread> clientThreads;
     std::mutex clientsMutex;
 
-    std::thread input_thread([&]() {
+    std::thread inputThread([&]() {
         std::string input;
-        while (std::getline(std::cin, input)) {
+        while (true) {
+            std::cout << "[Your text] : ";
+            if (!std::getline(std::cin, input)) break;
+
             input += "\n";
+
             std::lock_guard<std::mutex> lock(clientsMutex);
             for (auto it = clients.begin(); it != clients.end();) {
                 auto& sock = *it;
@@ -49,6 +53,7 @@ void Server::run(asio::io_context& io) {
         }
     });
 
+
     while (true) {
         auto socket = std::make_shared<asio::ip::tcp::socket>(io);
         asio::error_code ec;
@@ -57,7 +62,7 @@ void Server::run(asio::io_context& io) {
             std::cout << "Accept error: " << ec.message() << std::endl;
             continue;
         }
-        std::cout << "Connection received.\n";
+        
         {
             std::lock_guard<std::mutex> lock(clientsMutex);
             clients.push_back(socket);
@@ -71,10 +76,13 @@ void Server::run(asio::io_context& io) {
                     std::istream is(&buffer);
                     std::string msg;
                     std::getline(is, msg);
-                    std::cout << "Client: " << msg << std::endl;
+                    std::cout   << "\r"
+                            << "\33[2K"
+                            << "[Client] : " << msg << std::endl
+                            << "[Your text] : "
+                            << std::flush;
                 }
             } catch (const std::exception& e) {
-                std::cout << "Client disconnected: " << e.what() << std::endl;
                 socket->close();
                 std::lock_guard<std::mutex> lock(clientsMutex);
                 // Remove the socket from the clients list
@@ -83,8 +91,8 @@ void Server::run(asio::io_context& io) {
         });
     }
 
-    if (input_thread.joinable()) {
-        input_thread.join();
+    if (inputThread.joinable()) {
+        inputThread.join();
     }
     for (auto& t : clientThreads) {
         if (t.joinable()) {

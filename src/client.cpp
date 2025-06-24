@@ -67,7 +67,11 @@ void Client::run(asio::io_context& io) {
                 std::istream is(&buffer);
                 std::string msg;
                 std::getline(is, msg);
-                std::cout << "Server: " << msg << std::endl;
+                std::cout   << "\r"
+                            << "\33[2K"
+                            << "[Server] : " << msg << std::endl
+                            << "[Your text] : "
+                            << std::flush;
             }
         } catch (const std::exception& e) {
             disconnected = true;
@@ -79,10 +83,14 @@ void Client::run(asio::io_context& io) {
     });
 
     std::string input;
-    while (!disconnected && std::getline(std::cin, input)) {
+    while (!disconnected) {
+        std::cout << "[Your text] : ";
+        if (!std::getline(std::cin, input)) break;
+
         input += "\n";
         asio::write(socket, asio::buffer(input));
     }
+
 
     if (reader.joinable()) {
         reader.join();
