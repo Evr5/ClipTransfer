@@ -68,10 +68,13 @@ add_executable(clip-transfer ${SOURCES})
 include(${CMAKE_SOURCE_DIR}/cmake/asio.cmake)
 
 # Link external libraries
-target_link_libraries(clip-transfer PUBLIC asio)
+target_link_libraries(clip-transfer PRIVATE asio)
+if (WIN32)
+    target_link_libraries(clip-transfer PRIVATE ws2_32)
+endif()
 
 # Include directories
-target_include_directories(clip-transfer PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(clip-transfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Installation
 install(TARGETS clip-transfer RUNTIME DESTINATION bin)
