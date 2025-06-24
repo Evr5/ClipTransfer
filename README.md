@@ -27,8 +27,8 @@
 
 - Clipboard auto-sync
 - Bi-directional messaging
-- GUI support (Qt or Electron)
+- GUI support (with QT in progress)
 
 ## 📁 License
 
-MIT
+[MIT](./LICENSE)
