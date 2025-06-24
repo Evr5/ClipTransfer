@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=ClipTransfert
+Comment=Lightweight LAN clipboard/text sharing tool with automatic server/client detection
+Exec=clip-transfer
+Icon=clip-transfer
+Terminal=true
+Type=Application
+Categories=Utility;Network;

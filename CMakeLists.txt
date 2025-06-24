@@ -22,14 +22,16 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-# Static linking (cross-platform)
+# Static linking (fully static - cross-platform)
 if(BUILD_STATIC)
     message(STATUS "Static linking enabled")
+
     if(MSVC)
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     else()
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc")
+        # Link everything statically, including libc
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+        set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
     endif()
 endif()
 
@@ -52,9 +54,14 @@ if(WIN32)
 endif()
 
 # Source and include directories
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
+set(SOURCES
+    src/main.cpp
+    src/server.cpp
+    src/client.cpp
+)
 
 # Main executable
+add_definitions(-DASIO_HEADER_ONLY)
 add_executable(clip-transfer ${SOURCES})
 
 # External libraries target
