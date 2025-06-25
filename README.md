@@ -21,14 +21,18 @@
 ### Linux / macOS / Windows (with MinGW)
 
 1. Clone the repository:
+
    ```sh
    git clone https://github.com/Evr5/ClipTransfer.git
    cd clip-transfer
    ```
+
 2. Build with `make`:
+
     ```sh
     make
     ```
+
 Note: Requires a C++17-compatible compiler and CMake.
 
 ## 🧪 Arch Linux Users

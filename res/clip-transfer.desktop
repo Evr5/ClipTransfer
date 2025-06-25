@@ -2,7 +2,7 @@
 Name=ClipTransfert
 Comment=Lightweight LAN clipboard/text sharing tool with automatic server/client detection
 Exec=clip-transfer
-Icon=clip-transfer
+Icon=usr/share/icons/hicolor/128x128/apps/clip-transfer.png
 Terminal=true
 Type=Application
 Categories=Utility;Network;
