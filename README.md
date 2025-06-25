@@ -16,6 +16,55 @@
 2. If no server is found, it becomes the server.
 3. Once connected, text can be sent from one device to another instantly.
 
+## 🛠️ Compilation
+
+### Linux / macOS / Windows (with MinGW)
+
+1. Clone the repository:
+   ```sh
+   git clone https://github.com/Evr5/ClipTransfer.git
+   cd clip-transfer
+   ```
+2. Build with `make`:
+    ```sh
+    make
+    ```
+Note: Requires a C++17-compatible compiler and CMake.
+
+## 🧪 Arch Linux Users
+
+ClipTransfer is available in the AUR. You can install it using [`yay`](https://github.com/Jguer/yay):
+
+```sh
+yay -S clip-transfer        # Stable version (build from source)
+yay -S clip-transfer-bin    # Stable version (precompiled binary)
+yay -S clip-transfer-git    # Latest development version (from Git)
+```
+
+Choose the one that suits your preference:
+
+- `clip-transfer`: stable and open-source (compiled locally)
+- `clip-transfer-bin`: precompiled binary for quick install
+- `clip-transfer-git`: latest development version from the main branch
+
+## 🖥️ Windows Users
+
+If you prefer not to compile the project, you can directly download and run the precompiled [clip-transfer.exe](https://github.com/Evr5/ClipTransfer/releases/download/v1.0.0/clip-transfer.exe).
+
+> ⚠️ **Important**: On first launch, Windows Defender SmartScreen may block the app because it's not signed.
+>
+> - Click on **"More info"**  
+> - Then click **"Run anyway"**
+
+You may also see a Windows Firewall prompt asking for network access—this is expected. You can safely allow access to **Private networks** to enable communication between devices on the same LAN.
+
+## 🛑 How to stop the program
+
+To gracefully shut down the application, you can either:
+
+- Press **Ctrl + C** in the terminal or console window  
+- Or simply **close the terminal window**
+
 ## 🔧 Tech Stack
 
 - C++17
