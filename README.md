@@ -35,9 +35,19 @@
 
 Note: Requires a C++17-compatible compiler and CMake.
 
+## 🧩 Snapcraft (All Linux Distros with Snap Support)
+
+ClipTransfer is available on the Snap Store and can be installed easily on **any Linux distribution** that supports [Snap](https://snapcraft.io/docs/installing-snapd):
+
+```sh
+sudo snap install clip-transfer
+```
+
+>   📦 This is the easiest way to get started on Linux without compiling manually.
+
 ## 🧪 Arch Linux Users
 
-ClipTransfer is available in the AUR. You can install it using [`yay`](https://github.com/Jguer/yay):
+ClipTransfer is also available on the AUR. You can install it using [`yay`](https://github.com/Jguer/yay) or [`paru`](https://github.com/Morganamilo/paru):
 
 ```sh
 yay -S clip-transfer        # Stable version (build from source)
