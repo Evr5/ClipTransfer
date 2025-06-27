@@ -37,4 +37,7 @@ private:
     std::thread networkThread;
     std::atomic<bool> stopNetwork{false};
     QString lastReceived;
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 };
