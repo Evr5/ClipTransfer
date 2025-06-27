@@ -21,7 +21,7 @@ private slots:
     void sendManualMessage();
 
 public slots:
-    void appendReceivedMessage(const QString &msg);
+    Q_INVOKABLE void appendReceivedMessage(const QString &msg);
 
 private:
     void setupStyle();

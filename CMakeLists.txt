@@ -87,25 +87,31 @@ endif()
 # Include directories
 target_include_directories(clip-transfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
-# Find and link Qt6
+# Find and link Qt5
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 target_link_libraries(clip-transfer
     PRIVATE
         Qt5::Widgets
         Qt5::Gui
         Qt5::Core
-        ws2_32
-        kernel32
-        user32
-        gdi32
-        winspool
-        shell32
-        ole32
-        oleaut32
-        uuid
-        comdlg32
-        advapi32
 )
+
+# Lier les libs Windows uniquement sous Windows
+if (WIN32)
+    target_link_libraries(clip-transfer
+        PRIVATE
+            kernel32
+            user32
+            gdi32
+            winspool
+            shell32
+            ole32
+            oleaut32
+            uuid
+            comdlg32
+            advapi32
+    )
+endif()
 
 # Installation
 install(TARGETS clip-transfer RUNTIME DESTINATION bin)
