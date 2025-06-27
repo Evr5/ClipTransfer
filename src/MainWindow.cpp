@@ -376,16 +376,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     stopNetwork = true;
     outgoingCv.notify_all();
-    // Attendre la fin du thread réseau sans bloquer l'UI
     if (networkThread.joinable()) {
-        // Débloquer le thread réseau dans un thread temporaire pour éviter le freeze de l'UI
-        std::thread joiner([this]() {
-            networkThread.join();
-            QMetaObject::invokeMethod(qApp, "quit", Qt::QueuedConnection);
-        });
-        joiner.detach();
-        event->ignore(); // On ignore la fermeture pour laisser le thread finir puis quitter proprement
-    } else {
-        QMainWindow::closeEvent(event);
+        networkThread.detach(); // Ne pas bloquer la fermeture de la fenêtre
     }
+    QMainWindow::closeEvent(event);
 }

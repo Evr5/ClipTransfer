@@ -22,6 +22,9 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     virtual ~MainWindow(); // <-- virtuel obligatoire
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private slots:
     void sendClipboard();
     void copyLastReceived();

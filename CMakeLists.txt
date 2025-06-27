@@ -75,6 +75,11 @@ set(SOURCES
 add_definitions(-DASIO_HEADER_ONLY)
 add_executable(clip-transfer ${SOURCES})
 
+# Pour Windows : exécutable GUI (pas de console)
+if (WIN32)
+    set_target_properties(clip-transfer PROPERTIES WIN32_EXECUTABLE ON)
+endif()
+
 # External libraries target
 include(${CMAKE_SOURCE_DIR}/cmake/asio.cmake)
 
