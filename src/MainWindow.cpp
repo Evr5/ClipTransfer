@@ -21,6 +21,7 @@
 #include <chrono>
 #include <QCloseEvent>
 #include <asio.hpp>
+#include <iostream>
 
 namespace {
     // File de messages à envoyer depuis l'UI vers le réseau
@@ -186,7 +187,20 @@ void MainWindow::startNetwork() {
                     try {
                         while (!stopNetwork && !disconnected) {
                             asio::streambuf buffer;
-                            asio::read_until(socket, buffer, '\n');
+                            asio::error_code ec;
+                            std::size_t n = asio::read_until(socket, buffer, '\n', ec);
+                            if (ec) {
+                                std::cout << "[DEBUG][CLIENT] Erreur de lecture ou déconnexion du serveur : " << ec.message() << std::endl;
+                                disconnected = true;
+                                outgoingCv.notify_all(); // <-- Ajout ici
+                                break;
+                            }
+                            if (n == 0) {
+                                std::cout << "[DEBUG][CLIENT] Le serveur a fermé la connexion (n == 0)." << std::endl;
+                                disconnected = true;
+                                outgoingCv.notify_all(); // <-- Ajout ici
+                                break;
+                            }
                             std::istream is(&buffer);
                             std::string msg;
                             std::getline(is, msg);
@@ -196,14 +210,18 @@ void MainWindow::startNetwork() {
                             }
                         }
                     } catch (...) {
+                        std::cout << "[DEBUG][CLIENT] Exception dans le thread reader, déconnexion détectée." << std::endl;
                         disconnected = true;
+                        outgoingCv.notify_all(); // <-- Ajout ici
                     }
                 });
 
                 while (!stopNetwork && !disconnected) {
                     std::unique_lock<std::mutex> lock(outgoingMutex);
-                    outgoingCv.wait(lock, [this] { return !outgoingMessages.empty() || stopNetwork; });
-                    if (stopNetwork) break;
+                    outgoingCv.wait(lock, [this, &disconnected] { 
+                        return !outgoingMessages.empty() || stopNetwork || disconnected; 
+                    });
+                    if (stopNetwork || disconnected) break;
                     while (!outgoingMessages.empty()) {
                         QString msg = outgoingMessages.front();
                         outgoingMessages.pop();
@@ -213,6 +231,7 @@ void MainWindow::startNetwork() {
                         asio::write(socket, asio::buffer(toSend), write_ec);
                         if (write_ec) {
                             disconnected = true;
+                            outgoingCv.notify_all();
                             break;
                         }
                         lock.lock();
@@ -223,14 +242,17 @@ void MainWindow::startNetwork() {
 
                 if (disconnected && !stopNetwork) {
                     isClient = false;
+                    // Ne pas faire break ici, laisser la boucle continuer pour passer en mode serveur
                 } else {
                     break;
                 }
             } catch (...) {
                 isClient = false;
+                // Ne pas faire break ici non plus
             }
 
             if (!isClient && !stopNetwork) {
+                std::cout << "[DEBUG][CLIENT] Le client devient serveur." << std::endl;
                 // --- SERVER MODE ---
                 std::atomic<bool> stopUdp{false};
                 std::thread udpDiscoveryThread([&io, &stopUdp]() {
@@ -312,6 +334,7 @@ void MainWindow::startNetwork() {
                             std::string msg;
                             std::getline(is, msg);
                             if (!msg.empty()) {
+                                std::cout << "[DEBUG][SERVER] Message reçu du client : " << msg << std::endl;
                                 QMetaObject::invokeMethod(this, "appendReceivedMessage", Qt::QueuedConnection,
                                     Q_ARG(QString, "[Client] : " + QString::fromStdString(msg)));
                                 std::lock_guard<std::mutex> lock(clientsMutex);
@@ -348,6 +371,8 @@ void MainWindow::startNetwork() {
                             std::lock_guard<std::mutex> lock(clientsMutex);
                             clients.push_back(socket);
                         }
+                        std::cout << "[DEBUG][SERVER] Nouveau client connecté depuis : " 
+                                  << socket->remote_endpoint().address().to_string() << std::endl;
                         clientThreads.emplace_back(handle_client, socket);
                         hasClient = true;
                     }

@@ -166,7 +166,18 @@ void Client::run(asio::io_context& io) {
         try {
             while (true) {
                 asio::streambuf buffer;
-                asio::read_until(socket, buffer, '\n');
+                asio::error_code ec;
+                std::size_t n = asio::read_until(socket, buffer, '\n', ec);
+                if (ec) {
+                    std::cout << "[DEBUG] Erreur de lecture ou déconnexion du serveur : " << ec.message() << std::endl;
+                    disconnected = true;
+                    break;
+                }
+                if (n == 0) {
+                    std::cout << "[DEBUG] Le serveur a fermé la connexion (n == 0)." << std::endl;
+                    disconnected = true;
+                    break;
+                }
                 std::istream is(&buffer);
                 std::string msg;
                 std::getline(is, msg);
@@ -177,8 +188,11 @@ void Client::run(asio::io_context& io) {
                             << std::flush;
             }
         } catch (const std::exception& e) {
+            std::cout << "[DEBUG] Exception dans le thread reader : " << e.what() << std::endl;
             disconnected = true;
-            // Client becomes server if the old server disconnects
+        }
+        if (disconnected) {
+            std::cout << "[DEBUG] Déconnexion détectée, le client devient serveur." << std::endl;
             asio::io_context new_io;
             Server server;
             server.run(new_io);
@@ -191,7 +205,13 @@ void Client::run(asio::io_context& io) {
         if (!std::getline(std::cin, input)) break;
 
         input += "\n";
-        asio::write(socket, asio::buffer(input));
+        asio::error_code write_ec;
+        asio::write(socket, asio::buffer(input), write_ec);
+        if (write_ec) {
+            std::cout << "[DEBUG] Erreur d'écriture, probablement déconnecté du serveur : " << write_ec.message() << std::endl;
+            disconnected = true;
+            break;
+        }
     }
 
     if (reader.joinable()) {
