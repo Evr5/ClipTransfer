@@ -30,8 +30,10 @@ if(BUILD_STATIC)
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
     else()
         # Link everything statically, including libc
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
         set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+        set(CMAKE_LINK_SEARCH_START_STATIC TRUE)
+        set(CMAKE_LINK_SEARCH_END_STATIC TRUE)
     endif()
 endif()
 
