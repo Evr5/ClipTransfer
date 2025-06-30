@@ -85,7 +85,6 @@ To gracefully shut down the application, you can either:
 - Standalone ASIO
 - TCP/IP (LAN only)
 - CMake
-- Clang compilation by default
 
 ## 📦 Future Plans
 
