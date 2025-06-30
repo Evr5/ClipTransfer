@@ -56,18 +56,14 @@ static std::string getBroadcastAddress() {
                 ULONG mask;
                 if (!MyConvertLengthToIpv4Mask(ua->OnLinkPrefixLength, &mask)) continue;
                 ULONG ip = ntohl(sa->sin_addr.s_addr);
-                ULONG bcast = (ip & mask) | (~mask);
-                // Correction ici : construire la chaîne dans l'ordre réseau (big endian)
-                unsigned char bytes[4];
-                bytes[0] = (bcast >> 24) & 0xFF;
-                bytes[1] = (bcast >> 16) & 0xFF;
-                bytes[2] = (bcast >> 8) & 0xFF;
-                bytes[3] = bcast & 0xFF;
-                char bcast_str[16];
-                std::snprintf(bcast_str, sizeof(bcast_str), "%u.%u.%u.%u", bytes[0], bytes[1], bytes[2], bytes[3]);
-                std::string result(bcast_str);
+                ULONG msk = ntohl(mask);
+                ULONG bcast = (ip & msk) | (~msk);
+                struct in_addr bcast_addr;
+                bcast_addr.s_addr = htonl(bcast);
+                char* addr = inet_ntoa(bcast_addr);
+                std::string result(addr ? addr : "");
                 // Ignore obviously wrong broadcast addresses
-                if (result != "255.255.0.2" && result != "0.0.0.0") {
+                if (!result.empty() && result != "255.255.0.2" && result != "0.0.0.0") {
                     return result;
                 }
             }
@@ -207,6 +203,10 @@ void Client::startUdpDiscoveryServer(asio::io_context& io, std::atomic<bool>* st
         if (!ec && len > 0 && std::string(buf.data(), len) == "DISCOVER_CLIPSERVER") {
             std::string reply = "I_AM_CLIPSERVER";
             socket.send_to(buffer(reply), remoteEndpoint);
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // avoid unnecessary CPU usage
+    }
+}
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50)); // avoid unnecessary CPU usage
     }
