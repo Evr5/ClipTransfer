@@ -95,17 +95,12 @@ else()
 endif()
 
 # Source and include directories
-set(SOURCES
-    src/main.cpp
-    src/server.cpp
-    src/client.cpp
-    src/MainWindow.cpp
+file(GLOB_RECURSE SOURCES
+    src/*.cpp
 )
 
 # Active l'automoc pour Qt
 set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
 
 # Main executable
 add_definitions(-DASIO_HEADER_ONLY)

@@ -1,27 +1,17 @@
-#include "MainWindow.h"
-#include <QApplication>
-#include <QClipboard>
-#include <QMetaObject>
-#include <QGraphicsDropShadowEffect>
+#include "window.h"
+
 #include "ClipTransfer/client.hpp"
 #include "ClipTransfer/server.hpp"
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QTextEdit>
-#include <QPushButton>
-#include <QLineEdit>
-#include <QClipboard>
-#include <QApplication>
-#include <QDebug>
-#include <queue>
-#include <mutex>
-#include <condition_variable>
-#include <thread>
-#include <chrono>
-#include <QCloseEvent>
-#include <asio.hpp>
+
 #include <iostream>
+#include <thread>
+#include <queue>
+#include <asio.hpp>
+
+#include <QVBoxLayout>
+#include <QLabel>
+#include <QApplication>
+#include <QClipboard>
 
 namespace {
     // File de messages à envoyer depuis l'UI vers le réseau
@@ -126,7 +116,6 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupStyle() {
     setStyleSheet("QMainWindow { background-color: #1E1E24; }");
-    setWindowFlags(windowFlags() & ~Qt::WindowMaximizeButtonHint);
     setWindowIcon(QIcon()); // Ajoutez une icône personnalisée ici si souhaité
 }
 

@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QStyleFactory>
-#include "ClipTransfer/MainWindow.h"
+
+#include "gui/window.h"
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
