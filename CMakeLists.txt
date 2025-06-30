@@ -41,24 +41,6 @@ if(BUILD_STATIC)
     endif()
 endif()
 
-# Source and include directories
-set(SOURCES
-    src/main.cpp
-    src/server.cpp
-    src/client.cpp
-    src/MainWindow.cpp
-)
-
-# Active l'automoc pour Qt
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
-
-# Main executable
-add_definitions(-DASIO_HEADER_ONLY)
-add_executable(clip-transfer ${SOURCES})
-set_target_properties(clip-transfer PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
 # Compiler options
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     add_compile_options(
@@ -70,11 +52,10 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -Wno-unknown-warning-option
     )
 endif()
-
 if(MSVC)
     add_compile_options(/W4 /permissive-)
 else()
-    target_compile_options(clip-transfer PRIVATE
+    add_compile_options(
         -Wall 
         -Wextra 
         -pedantic 
@@ -94,18 +75,42 @@ else()
         -Wmisleading-indentation
         -fdiagnostics-show-option
         -pipe
-        -fstack-protector-strong)
+        -fstack-protector-strong
+        -Wduplicated-cond
+        -Wduplicated-branches
+        -Wlogical-op
+        -Wuseless-cast
+        -Wno-volatile   
+    )
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        target_compile_options(clip-transfer PRIVATE -g)
+        add_compile_options(-g)
         if(NOT (WIN32 AND NOT MSVC)) # Address and undefined behavior sanitizers are not supported on MSVC
-            target_compile_options(clip-transfer PRIVATE -fsanitize=address,undefined)
-            target_link_options(clip-transfer PRIVATE -fsanitize=address,undefined)
+            add_compile_options(-fsanitize=address,undefined)
+            add_link_options(-fsanitize=address,undefined)
         endif()
     else()
-        target_compile_options(clip-transfer PRIVATE -O3 -DNDEBUG -flto)
-    target_link_options(clip-transfer PRIVATE -flto)
+        add_compile_options(-O3 -DNDEBUG -flto)
+        add_link_options(-flto)
     endif()
 endif()
+
+# Source and include directories
+set(SOURCES
+    src/main.cpp
+    src/server.cpp
+    src/client.cpp
+    src/MainWindow.cpp
+)
+
+# Active l'automoc pour Qt
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
+# Main executable
+add_definitions(-DASIO_HEADER_ONLY)
+add_executable(clip-transfer ${SOURCES})
+set_target_properties(clip-transfer PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Position-independent code for shared libraries
 if(WIN32)
