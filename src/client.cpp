@@ -6,9 +6,22 @@
 #include <system_error>
 #include <thread>
 #include <iostream>
-#include <ifaddrs.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <array>
+#include <atomic>
+#include <asio.hpp>
+
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <iphlpapi.h>
+    #include <ws2tcpip.h>
+#else
+    #include <ifaddrs.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <net/if.h>
+#endif
 
 std::string Client::getLocalIp() {
     asio::io_context ctx;
@@ -18,10 +31,35 @@ std::string Client::getLocalIp() {
     return ep.address().to_string();
 }
 
-// Utilitaire pour obtenir l'adresse de broadcast du réseau local (Linux/Unix uniquement)
+#ifdef _WIN32
+bool MyConvertLengthToIpv4Mask(ULONG prefixLength, ULONG* mask) {
+    if (prefixLength > 32) return false;
+    *mask = prefixLength == 0 ? 0 : htonl(0xFFFFFFFF << (32 - prefixLength));
+    return true;
+}
+#endif
+
+// Utilitaire pour obtenir l'adresse de broadcast du réseau local
 static std::string getBroadcastAddress() {
 #ifdef _WIN32
-    // Sur Windows, on garde 255.255.255.255
+    ULONG bufLen = 15000;
+    std::vector<char> buffer(bufLen);
+    IP_ADAPTER_ADDRESSES* adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data());
+
+    if (GetAdaptersAddresses(AF_INET, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapters, &bufLen) == ERROR_SUCCESS) {
+        for (IP_ADAPTER_ADDRESSES* adapter = adapters; adapter != nullptr; adapter = adapter->Next) {
+            for (IP_ADAPTER_UNICAST_ADDRESS* ua = adapter->FirstUnicastAddress; ua != nullptr; ua = ua->Next) {
+                sockaddr_in* sa = reinterpret_cast<sockaddr_in*>(ua->Address.lpSockaddr);
+                ULONG mask;
+                if (!MyConvertLengthToIpv4Mask(ua->OnLinkPrefixLength, &mask)) continue;
+                ULONG ip = ntohl(sa->sin_addr.s_addr);
+                ULONG bcast = (ip & mask) | (~mask);
+                in_addr addr;
+                addr.s_addr = htonl(bcast);
+                return inet_ntoa(addr);
+            }
+        }
+    }
     return "255.255.255.255";
 #else
     struct ifaddrs *ifap, *ifa;
@@ -46,7 +84,6 @@ static std::string getBroadcastAddress() {
         }
         freeifaddrs(ifap);
     }
-    // Fallback
     return "255.255.255.255";
 #endif
 }
@@ -117,7 +154,7 @@ void Client::run(asio::io_context& io) {
             }
         } catch (const std::exception& e) {
             disconnected = true;
-            // Client become a server if the old server disconnects
+            // Client becomes server if the old server disconnects
             asio::io_context new_io;
             Server server;
             server.run(new_io);
@@ -133,12 +170,10 @@ void Client::run(asio::io_context& io) {
         asio::write(socket, asio::buffer(input));
     }
 
-
     if (reader.joinable()) {
         reader.join();
     }
 }
-
 
 void Client::startUdpDiscoveryServer(asio::io_context& io, std::atomic<bool>* stop_flag) {
     using namespace asio;

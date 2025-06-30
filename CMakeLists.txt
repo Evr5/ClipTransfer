@@ -77,7 +77,7 @@ add_executable(clip-transfer ${SOURCES})
 
 # Pour Windows : exécutable GUI (pas de console)
 if (WIN32)
-    set_target_properties(clip-transfer PROPERTIES WIN32_EXECUTABLE ON)
+    set_target_properties(clip-transfer PROPERTIES WIN32_EXECUTABLE OFF)
 endif()
 
 # External libraries target
@@ -85,9 +85,6 @@ include(${CMAKE_SOURCE_DIR}/cmake/asio.cmake)
 
 # Link external libraries
 target_link_libraries(clip-transfer PRIVATE asio)
-if (WIN32)
-    target_link_libraries(clip-transfer PRIVATE ws2_32)
-endif()
 
 # Include directories
 target_include_directories(clip-transfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -105,6 +102,7 @@ target_link_libraries(clip-transfer
 if (WIN32)
     target_link_libraries(clip-transfer
         PRIVATE
+            ws2_32
             kernel32
             user32
             gdi32
@@ -115,6 +113,7 @@ if (WIN32)
             uuid
             comdlg32
             advapi32
+            iphlpapi
     )
 endif()
 
