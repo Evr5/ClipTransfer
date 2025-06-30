@@ -6,6 +6,9 @@
 #include <system_error>
 #include <thread>
 #include <iostream>
+#include <ifaddrs.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 std::string Client::getLocalIp() {
     asio::io_context ctx;
@@ -15,13 +18,48 @@ std::string Client::getLocalIp() {
     return ep.address().to_string();
 }
 
+// Utilitaire pour obtenir l'adresse de broadcast du réseau local (Linux/Unix uniquement)
+static std::string getBroadcastAddress() {
+#ifdef _WIN32
+    // Sur Windows, on garde 255.255.255.255
+    return "255.255.255.255";
+#else
+    struct ifaddrs *ifap, *ifa;
+    struct sockaddr_in *sa, *mask;
+    char *addr;
+    if (getifaddrs(&ifap) == 0) {
+        for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+            if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET &&
+                (ifa->ifa_flags & IFF_BROADCAST) && !(ifa->ifa_flags & IFF_LOOPBACK)) {
+                sa = (struct sockaddr_in *)ifa->ifa_addr;
+                mask = (struct sockaddr_in *)ifa->ifa_netmask;
+                uint32_t ip = ntohl(sa->sin_addr.s_addr);
+                uint32_t msk = ntohl(mask->sin_addr.s_addr);
+                uint32_t bcast = (ip & msk) | (~msk);
+                struct in_addr bcast_addr;
+                bcast_addr.s_addr = htonl(bcast);
+                addr = inet_ntoa(bcast_addr);
+                std::string result(addr);
+                freeifaddrs(ifap);
+                return result;
+            }
+        }
+        freeifaddrs(ifap);
+    }
+    // Fallback
+    return "255.255.255.255";
+#endif
+}
+
 std::optional<std::string> Client::discoverServerIp(asio::io_context& io) {
     using namespace asio;
     ip::udp::socket socket(io);
     socket.open(ip::udp::v4());
     socket.set_option(socket_base::broadcast(true));
 
-    ip::udp::endpoint broadcast_endpoint(ip::address_v4::broadcast(), 54001);
+    std::string broadcast_ip = getBroadcastAddress();
+    std::cout << "[DEBUG] Broadcast address used: " << broadcast_ip << std::endl;
+    ip::udp::endpoint broadcast_endpoint(ip::make_address(broadcast_ip), 54001);
     std::string message = "DISCOVER_CLIPSERVER";
     socket.send_to(buffer(message), broadcast_endpoint);
 
@@ -34,9 +72,11 @@ std::optional<std::string> Client::discoverServerIp(asio::io_context& io) {
         asio::error_code ec;
         size_t len = socket.receive_from(buffer(recvBuf), senderEndpoint, 0, ec);
         if (!ec && std::string(recvBuf.data(), len) == "I_AM_CLIPSERVER") {
+            std::cout << "[DEBUG] Server found at: " << senderEndpoint.address().to_string() << std::endl;
             return senderEndpoint.address().to_string();
         }
     }
+    std::cout << "[DEBUG] No server found on the network." << std::endl;
     return std::nullopt;
 }
 
@@ -47,13 +87,15 @@ void Client::run(asio::io_context& io) {
     }
 
     std::string SERVER_IP = *ip;
+    std::cout << "[DEBUG] Connecting to server at: " << SERVER_IP << ":" << Server::PORT << std::endl;
     asio::ip::tcp::socket socket(io);
     asio::ip::tcp::endpoint endpoint(asio::ip::make_address(SERVER_IP), Server::PORT);
     std::cout << "Client mode : connection made to server" << std::endl;
 
-    std::error_code ec;
-    std::error_code socketError = socket.connect(endpoint, ec);
+    asio::error_code ec;
+    asio::error_code socketError = socket.connect(endpoint, ec);
     if (ec || socketError) {
+        std::cerr << "[DEBUG] TCP connection failed: " << ec.message() << std::endl;
         throw std::runtime_error("TCP connection failed");
     }
 
