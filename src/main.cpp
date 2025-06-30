@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
 
     MainWindow w;
     w.setWindowTitle("ClipTransfer");
-    w.resize(720, 480);
+    w.resize(720, 720);
     w.show();
     return app.exec();
 }
