@@ -23,14 +23,6 @@
     #include <net/if.h>
 #endif
 
-std::string Client::getLocalIp() {
-    asio::io_context ctx;
-    asio::ip::udp::resolver resolver(ctx);
-    asio::ip::udp::resolver::query query("8.8.8.8", "80");
-    asio::ip::udp::endpoint ep = *resolver.resolve(query).begin();
-    return ep.address().to_string();
-}
-
 #ifdef _WIN32
 bool MyConvertLengthToIpv4Mask(ULONG prefixLength, ULONG* mask) {
     if (prefixLength > 32) return false;
@@ -39,38 +31,65 @@ bool MyConvertLengthToIpv4Mask(ULONG prefixLength, ULONG* mask) {
 }
 #endif
 
-// Utilitaire pour obtenir l'adresse de broadcast du réseau local
+std::string Client::getLocalIp() {
+    asio::io_context ctx;
+    asio::ip::udp::resolver resolver(ctx);
+    asio::ip::udp::resolver::query query("8.8.8.8", "80");
+    asio::ip::udp::endpoint ep = *resolver.resolve(query).begin();
+    return ep.address().to_string();
+}
+
 static std::string getBroadcastAddress() {
 #ifdef _WIN32
-    ULONG bufLen = 15000;
-    std::vector<char> buffer(bufLen);
+    std::string localIp = Client::getLocalIp();
+
+    ULONG outBufLen = 0;
+    DWORD dwRetVal = GetAdaptersAddresses(AF_INET, GAA_FLAG_INCLUDE_PREFIX, NULL, NULL, &outBufLen);
+    if (dwRetVal != ERROR_BUFFER_OVERFLOW) {
+        std::cerr << "[ERROR] GetAdaptersAddresses initial call failed: " << dwRetVal << std::endl;
+        return "255.255.255.255";
+    }
+
+    std::vector<BYTE> buffer(outBufLen);
     IP_ADAPTER_ADDRESSES* adapters = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data());
 
-    if (GetAdaptersAddresses(AF_INET, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapters, &bufLen) == ERROR_SUCCESS) {
-        for (IP_ADAPTER_ADDRESSES* adapter = adapters; adapter != nullptr; adapter = adapter->Next) {
-            if (!(adapter->OperStatus == IfOperStatusUp) || (adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK))
-                continue;
-            for (IP_ADAPTER_UNICAST_ADDRESS* ua = adapter->FirstUnicastAddress; ua != nullptr; ua = ua->Next) {
-                sockaddr_in* sa = reinterpret_cast<sockaddr_in*>(ua->Address.lpSockaddr);
-                if (!sa) continue;
-                ULONG mask;
-                if (!MyConvertLengthToIpv4Mask(ua->OnLinkPrefixLength, &mask)) continue;
+    dwRetVal = GetAdaptersAddresses(AF_INET, GAA_FLAG_INCLUDE_PREFIX, NULL, adapters, &outBufLen);
+    if (dwRetVal != ERROR_SUCCESS) {
+        std::cerr << "[ERROR] GetAdaptersAddresses failed: " << dwRetVal << std::endl;
+        return "255.255.255.255";
+    }
+
+    for (IP_ADAPTER_ADDRESSES* adapter = adapters; adapter != nullptr; adapter = adapter->Next) {
+        if (adapter->OperStatus != IfOperStatusUp) continue;
+        if (adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK) continue;
+
+        for (IP_ADAPTER_UNICAST_ADDRESS* ua = adapter->FirstUnicastAddress; ua != nullptr; ua = ua->Next) {
+            if (ua->Address.lpSockaddr->sa_family != AF_INET) continue;
+
+            sockaddr_in* sa = reinterpret_cast<sockaddr_in*>(ua->Address.lpSockaddr);
+            std::string ipStr = inet_ntoa(sa->sin_addr);
+
+            if (ipStr == localIp) {
+                ULONG prefixLen = ua->OnLinkPrefixLength;
+                ULONG mask = prefixLen == 0 ? 0 : htonl(0xFFFFFFFF << (32 - prefixLen));
                 ULONG ip = ntohl(sa->sin_addr.s_addr);
                 ULONG msk = ntohl(mask);
                 ULONG bcast = (ip & msk) | (~msk);
-                struct in_addr bcast_addr;
+
+                in_addr bcast_addr;
                 bcast_addr.s_addr = htonl(bcast);
-                char* addr = inet_ntoa(bcast_addr);
-                std::string result(addr ? addr : "");
-                // Ignore obviously wrong broadcast addresses
-                if (!result.empty() && result != "255.255.0.2" && result != "0.0.0.0") {
-                    return result;
+                char* addrStr = inet_ntoa(bcast_addr);
+                if (addrStr && std::string(addrStr) != "0.0.0.0" && std::string(addrStr) != "255.255.255.255") {
+                    return std::string(addrStr);
                 }
             }
         }
     }
+
     return "255.255.255.255";
+
 #else
+    // ta version Linux existante
     struct ifaddrs *ifap, *ifa;
     struct sockaddr_in *sa, *mask;
     char *addr;
