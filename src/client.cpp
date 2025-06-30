@@ -207,7 +207,3 @@ void Client::startUdpDiscoveryServer(asio::io_context& io, std::atomic<bool>* st
         std::this_thread::sleep_for(std::chrono::milliseconds(50)); // avoid unnecessary CPU usage
     }
 }
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(50)); // avoid unnecessary CPU usage
-    }
-}
