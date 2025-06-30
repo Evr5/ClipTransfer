@@ -48,7 +48,6 @@ static std::string getBroadcastAddress() {
 
     if (GetAdaptersAddresses(AF_INET, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapters, &bufLen) == ERROR_SUCCESS) {
         for (IP_ADAPTER_ADDRESSES* adapter = adapters; adapter != nullptr; adapter = adapter->Next) {
-            // Ignore interfaces that are not up or are loopback
             if (!(adapter->OperStatus == IfOperStatusUp) || (adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK))
                 continue;
             for (IP_ADAPTER_UNICAST_ADDRESS* ua = adapter->FirstUnicastAddress; ua != nullptr; ua = ua->Next) {
@@ -58,12 +57,17 @@ static std::string getBroadcastAddress() {
                 if (!MyConvertLengthToIpv4Mask(ua->OnLinkPrefixLength, &mask)) continue;
                 ULONG ip = ntohl(sa->sin_addr.s_addr);
                 ULONG bcast = (ip & mask) | (~mask);
-                in_addr addr;
-                addr.s_addr = htonl(bcast);
-                std::string bcast_str = inet_ntoa(addr);
+                unsigned char bytes[4];
+                bytes[0] = (bcast >> 24) & 0xFF;
+                bytes[1] = (bcast >> 16) & 0xFF;
+                bytes[2] = (bcast >> 8) & 0xFF;
+                bytes[3] = bcast & 0xFF;
+                char bcast_str[16];
+                std::snprintf(bcast_str, sizeof(bcast_str), "%u.%u.%u.%u", bytes[0], bytes[1], bytes[2], bytes[3]);
+                std::string result(bcast_str);
                 // Ignore obviously wrong broadcast addresses
-                if (bcast_str != "255.255.0.2" && bcast_str != "0.0.0.0") {
-                    return bcast_str;
+                if (result != "255.255.0.2" && result != "0.0.0.0") {
+                    return result;
                 }
             }
         }
