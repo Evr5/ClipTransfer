@@ -41,27 +41,15 @@ if(MSVC)
 else()
     add_compile_options(-Wall -Wextra -pedantic)
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_options(-g -fsanitize=address,undefined)
-        add_link_options(-fsanitize=address,undefined)
+        add_compile_options(-g)
+        if(NOT (WIN32 AND NOT MSVC)) # Address and undefined behavior sanitizers are not supported on MSVC
+            add_compile_options(-fsanitize=address,undefined)
+            add_link_options(-fsanitize=address,undefined)
+        endif()
     else()
         add_compile_options(-O3 -DNDEBUG)
     endif()
 endif()
-
-# Define the minimum Windows version for compatibility
-if(WIN32)
-    add_compile_definitions(_WIN32_WINNT=0x0600)
-endif()
-
-# Active l'automoc pour Qt
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTORCC ON)
-
-# For Windows: force source encoding to UTF-8 (for Qt, etc.)
-if (WIN32)
-    add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
-endif ()
 
 # Source and include directories
 set(SOURCES
@@ -71,12 +59,37 @@ set(SOURCES
     src/MainWindow.cpp
 )
 
+# Active l'automoc pour Qt
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
 # Main executable
 add_definitions(-DASIO_HEADER_ONLY)
 add_executable(clip-transfer ${SOURCES})
 
-# Pour Windows : exécutable GUI (pas de console)
-if (WIN32)
+if(WIN32)
+    add_compile_definitions(_WIN32_WINNT=0x0600) # Define the minimum Windows version for compatibility
+    add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>") # force source encoding to UTF-8 (for Qt, etc.)
+    set_target_properties(clip-transfer PROPERTIES WIN32_EXECUTABLE ON) # Create a GUI application (no console window)
+    target_link_libraries(clip-transfer # Link against Windows libraries
+        PRIVATE
+            ws2_32
+            kernel32
+            user32
+            gdi32
+            winspool
+            shell32
+            ole32
+            oleaut32
+            uuid
+            comdlg32
+            advapi32
+            iphlpapi
+    )
+endif()
+
+if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     set_target_properties(clip-transfer PROPERTIES WIN32_EXECUTABLE OFF)
 endif()
 
@@ -97,25 +110,6 @@ target_link_libraries(clip-transfer
         Qt5::Gui
         Qt5::Core
 )
-
-# Lier les libs Windows uniquement sous Windows
-if (WIN32)
-    target_link_libraries(clip-transfer
-        PRIVATE
-            ws2_32
-            kernel32
-            user32
-            gdi32
-            winspool
-            shell32
-            ole32
-            oleaut32
-            uuid
-            comdlg32
-            advapi32
-            iphlpapi
-    )
-endif()
 
 # Installation
 install(TARGETS clip-transfer RUNTIME DESTINATION bin)
