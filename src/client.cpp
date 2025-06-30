@@ -41,8 +41,6 @@ std::string Client::getLocalIp() {
 
 static std::string getBroadcastAddress() {
 #ifdef _WIN32
-    std::string localIp = Client::getLocalIp();
-
     ULONG outBufLen = 0;
     DWORD dwRetVal = GetAdaptersAddresses(AF_INET, GAA_FLAG_INCLUDE_PREFIX, NULL, NULL, &outBufLen);
     if (dwRetVal != ERROR_BUFFER_OVERFLOW) {
@@ -63,33 +61,32 @@ static std::string getBroadcastAddress() {
         if (adapter->OperStatus != IfOperStatusUp) continue;
         if (adapter->IfType == IF_TYPE_SOFTWARE_LOOPBACK) continue;
 
+        // Ignore interfaces marked as VPN
+        if (adapter->IfType == IF_TYPE_PPP || strstr(adapter->AdapterName, "NordLynx") || wcsstr(adapter->Description, L"VPN")) {
+            continue;
+        }
+
         for (IP_ADAPTER_UNICAST_ADDRESS* ua = adapter->FirstUnicastAddress; ua != nullptr; ua = ua->Next) {
             if (ua->Address.lpSockaddr->sa_family != AF_INET) continue;
 
             sockaddr_in* sa = reinterpret_cast<sockaddr_in*>(ua->Address.lpSockaddr);
-            std::string ipStr = inet_ntoa(sa->sin_addr);
+            ULONG prefixLen = ua->OnLinkPrefixLength;
+            ULONG mask = prefixLen == 0 ? 0 : htonl(0xFFFFFFFF << (32 - prefixLen));
+            ULONG ip = ntohl(sa->sin_addr.s_addr);
+            ULONG msk = ntohl(mask);
+            ULONG bcast = (ip & msk) | (~msk);
 
-            if (ipStr == localIp) {
-                ULONG prefixLen = ua->OnLinkPrefixLength;
-                ULONG mask = prefixLen == 0 ? 0 : htonl(0xFFFFFFFF << (32 - prefixLen));
-                ULONG ip = ntohl(sa->sin_addr.s_addr);
-                ULONG msk = ntohl(mask);
-                ULONG bcast = (ip & msk) | (~msk);
-
-                in_addr bcast_addr;
-                bcast_addr.s_addr = htonl(bcast);
-                char* addrStr = inet_ntoa(bcast_addr);
-                if (addrStr && std::string(addrStr) != "0.0.0.0" && std::string(addrStr) != "255.255.255.255") {
-                    return std::string(addrStr);
-                }
+            in_addr bcast_addr;
+            bcast_addr.s_addr = htonl(bcast);
+            char* addrStr = inet_ntoa(bcast_addr);
+            if (addrStr && std::string(addrStr).find("192.168.") == 0) {
+                return std::string(addrStr);
             }
         }
     }
 
     return "255.255.255.255";
-
 #else
-    // ta version Linux existante
     struct ifaddrs *ifap, *ifa;
     struct sockaddr_in *sa, *mask;
     char *addr;

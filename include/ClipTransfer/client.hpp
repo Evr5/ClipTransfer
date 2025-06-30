@@ -9,7 +9,7 @@ class Client {
         Client() = default;
         ~Client() = default;
 
-        std::string getLocalIp();
+        static std::string getLocalIp();
         std::optional<std::string> discoverServerIp(asio::io_context& io);
         void run(asio::io_context& io);
         void startUdpDiscoveryServer(asio::io_context& io, std::atomic<bool>* stop_flag = nullptr);
