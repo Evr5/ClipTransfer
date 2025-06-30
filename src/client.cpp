@@ -57,6 +57,7 @@ static std::string getBroadcastAddress() {
                 if (!MyConvertLengthToIpv4Mask(ua->OnLinkPrefixLength, &mask)) continue;
                 ULONG ip = ntohl(sa->sin_addr.s_addr);
                 ULONG bcast = (ip & mask) | (~mask);
+                // Correction ici : construire la chaîne dans l'ordre réseau (big endian)
                 unsigned char bytes[4];
                 bytes[0] = (bcast >> 24) & 0xFF;
                 bytes[1] = (bcast >> 16) & 0xFF;
