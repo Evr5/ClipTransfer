@@ -43,7 +43,7 @@ ClipTransfer is available on the Snap Store and can be installed easily on **any
 sudo snap install clip-transfer
 ```
 
->   📦 This is the easiest way to get started on Linux without compiling manually.
+> 📦 This is the easiest way to get started on Linux without compiling manually.
 
 ## 🧪 Arch Linux Users
 
@@ -85,6 +85,7 @@ To gracefully shut down the application, you can either:
 - Standalone ASIO
 - TCP/IP (LAN only)
 - CMake
+- Clang compilation by default
 
 ## 📦 Future Plans
 

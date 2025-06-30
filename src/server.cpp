@@ -1,6 +1,5 @@
 #include "ClipTransfer/server.hpp"
 #include "ClipTransfer/client.hpp"
-#include "asio/error_code.hpp"
 
 #include <iostream>
 #include <thread>

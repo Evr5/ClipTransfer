@@ -17,6 +17,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Set visibility for symbols (hidden by default)
+set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
+
 # Default build type
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
@@ -37,11 +41,43 @@ if(BUILD_STATIC)
     endif()
 endif()
 
-# Compilation flags
+# Compiler options
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(
+        -fcolor-diagnostics   
+        -fansi-escape-codes   
+        -Wno-c++98-compat     
+        -Wno-c++98-compat-pedantic
+        -Wno-gnu-zero-variadic-macro-arguments
+        -Wno-unknown-warning-option
+    )
+endif()
+
 if(MSVC)
     add_compile_options(/W4 /permissive-)
 else()
-    add_compile_options(-Wall -Wextra -pedantic)
+    add_compile_options(
+        -Wall 
+        -Wextra 
+        -pedantic 
+        -Wshadow 
+        -Wnon-virtual-dtor 
+        -Wold-style-cast 
+        -Wcast-align 
+        -Wunused 
+        -Woverloaded-virtual
+        -Wconversion
+        -Wsign-conversion
+        -Wnull-dereference
+        -Wdouble-promotion
+        -Wformat=2
+        -Wno-unknown-pragmas
+        -Wextra-semi
+        -Wcomma
+        -Wmisleading-indentation
+        -fdiagnostics-show-option
+        -pipe
+        -fstack-protector-strong)
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(-g)
         if(NOT (WIN32 AND NOT MSVC)) # Address and undefined behavior sanitizers are not supported on MSVC
@@ -49,7 +85,9 @@ else()
             add_link_options(-fsanitize=address,undefined)
         endif()
     else()
-        add_compile_options(-O3 -DNDEBUG)
+        add_compile_options(-O3 -DNDEBUG) 
+        add_compile_options(-flto)
+        add_link_options(-flto)
     endif()
 endif()
 
@@ -69,7 +107,9 @@ set(CMAKE_AUTORCC ON)
 # Main executable
 add_definitions(-DASIO_HEADER_ONLY)
 add_executable(clip-transfer ${SOURCES})
+set_target_properties(clip-transfer PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+# Position-independent code for shared libraries
 if(WIN32)
     add_compile_definitions(_WIN32_WINNT=0x0600) # Define the minimum Windows version for compatibility
     add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>") # force source encoding to UTF-8 (for Qt, etc.)

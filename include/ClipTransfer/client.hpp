@@ -1,8 +1,14 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
-#include <optional>
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wsign-conversion"
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+#pragma clang diagnostic ignored "-Wold-style-cast"
 #include <asio.hpp>
+#pragma clang diagnostic pop
+
+#include <optional>
 
 class Client {
     public:

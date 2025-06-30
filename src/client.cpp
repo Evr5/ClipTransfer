@@ -8,7 +8,6 @@
 #include <iostream>
 #include <array>
 #include <atomic>
-#include <asio.hpp>
 
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
@@ -94,8 +93,8 @@ static std::string getBroadcastAddress() {
         for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
             if (ifa->ifa_addr && ifa->ifa_addr->sa_family == AF_INET &&
                 (ifa->ifa_flags & IFF_BROADCAST) && !(ifa->ifa_flags & IFF_LOOPBACK)) {
-                sa = (struct sockaddr_in *)ifa->ifa_addr;
-                mask = (struct sockaddr_in *)ifa->ifa_netmask;
+                sa = reinterpret_cast<struct sockaddr_in *>(ifa->ifa_addr);
+                mask = reinterpret_cast<struct sockaddr_in *>(ifa->ifa_netmask);
                 uint32_t ip = ntohl(sa->sin_addr.s_addr);
                 uint32_t msk = ntohl(mask->sin_addr.s_addr);
                 uint32_t bcast = (ip & msk) | (~msk);
