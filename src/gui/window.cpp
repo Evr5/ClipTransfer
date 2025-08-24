@@ -3,6 +3,7 @@
 #include "ClipTransfer/client.hpp"
 #include "ClipTransfer/server.hpp"
 
+#include <asio/error_code.hpp>
 #include <iostream>
 #include <thread>
 #include <queue>
@@ -14,12 +15,12 @@
 #include <QClipboard>
 
 namespace {
-    // File de messages à envoyer depuis l'UI vers le réseau
+    // Queue of messages to send from the UI to the network
     std::queue<QString> outgoingMessages;
     std::mutex outgoingMutex;
     std::condition_variable outgoingCv;
 
-    // Ajout : fonction utilitaire pour vider la file de messages
+    // Added: utility function to clear the message queue
     void clearOutgoingMessages() {
         std::lock_guard<std::mutex> lock(outgoingMutex);
         std::queue<QString> empty;
@@ -27,9 +28,7 @@ namespace {
     }
 }
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-{
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     QWidget *central = new QWidget(this);
     QVBoxLayout *mainLayout = new QVBoxLayout(central);
 
@@ -44,8 +43,8 @@ MainWindow::MainWindow(QWidget *parent)
         "background-color: #23232B; color: #F8F8FF; border-radius: 10px; font-size: 15px; padding: 8px;"
     );
 
-    btnSendClipboard = new QPushButton("Envoyer le presse-papier", this);
-    btnCopyLast = new QPushButton("Copier le dernier message reçu", this);
+    btnSendClipboard = new QPushButton("Send clipboard", this);
+    btnCopyLast = new QPushButton("Copy last received message", this);
 
     QString btnStyle =
         "QPushButton {"
@@ -68,12 +67,12 @@ MainWindow::MainWindow(QWidget *parent)
     btnCopyLast->setStyleSheet(btnStyle);
 
     manualInput = new QLineEdit(this);
-    manualInput->setPlaceholderText("Écrivez un message à envoyer...");
+    manualInput->setPlaceholderText("Write a message to send...");
     manualInput->setStyleSheet(
         "background-color: #23232B; color: #F8F8FF; border-radius: 10px; font-size: 15px; padding: 8px;"
     );
 
-    btnSendManual = new QPushButton("Envoyer", this);
+    btnSendManual = new QPushButton("Send", this);
     btnSendManual->setStyleSheet(btnStyle);
 
     QHBoxLayout *manualLayout = new QHBoxLayout();
@@ -99,7 +98,7 @@ MainWindow::MainWindow(QWidget *parent)
     setupStyle();
     startNetwork();
 
-    // Arrêt propre du thread réseau à la fermeture de la fenêtre
+    // Properly stop the network thread when the window is closed
     connect(qApp, &QApplication::aboutToQuit, this, [this]() {
         stopNetwork = true;
         outgoingCv.notify_all();
@@ -107,8 +106,7 @@ MainWindow::MainWindow(QWidget *parent)
     });
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     stopNetwork = true;
     outgoingCv.notify_all();
     if (networkThread.joinable()) networkThread.join();
@@ -116,7 +114,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::setupStyle() {
     setStyleSheet("QMainWindow { background-color: #1E1E24; }");
-    setWindowIcon(QIcon()); // Ajoutez une icône personnalisée ici si souhaité
+    setWindowIcon(QIcon());
 }
 
 void MainWindow::sendClipboard() {
@@ -127,7 +125,7 @@ void MainWindow::sendClipboard() {
         outgoingMessages.push(text);
     }
     outgoingCv.notify_one();
-    appendReceivedMessage("[Vous] : " + text);
+    appendReceivedMessage("[You] : " + text);
 }
 
 void MainWindow::copyLastReceived() {
@@ -142,13 +140,23 @@ void MainWindow::sendManualMessage() {
             outgoingMessages.push(text);
         }
         outgoingCv.notify_one();
-        appendReceivedMessage("[Vous] : " + text);
+        appendReceivedMessage("[You] : " + text);
         manualInput->clear();
     }
 }
 
+QString removePrefix(const QString& str) {
+    const QStringList prefixes = {"[You] : ", "[Client] : ", "[Server] : "};
+    for (const auto& prefix : prefixes) {
+        if (str.startsWith(prefix)) { 
+            return str.mid(prefix.length());
+        }
+    }
+    return str;
+}
+
 void MainWindow::appendReceivedMessage(const QString &msg) {
-    lastReceived = msg;
+    lastReceived = removePrefix(msg);
     receivedMessages->append(msg);
 }
 
@@ -167,7 +175,7 @@ void MainWindow::startNetwork() {
                 asio::ip::tcp::socket socket(io);
                 asio::ip::tcp::endpoint endpoint(asio::ip::make_address(SERVER_IP), Server::PORT);
                 asio::error_code ec;
-                socket.connect(endpoint, ec);
+                asio::error_code socketError = socket.connect(endpoint, ec);
                 if (ec) throw std::runtime_error("TCP connection failed");
 
                 std::atomic<bool> disconnected{false};
@@ -179,15 +187,13 @@ void MainWindow::startNetwork() {
                             asio::error_code ec;
                             std::size_t n = asio::read_until(socket, buffer, '\n', ec);
                             if (ec) {
-                                std::cout << "[DEBUG][CLIENT] Erreur de lecture ou déconnexion du serveur : " << ec.message() << std::endl;
                                 disconnected = true;
-                                outgoingCv.notify_all(); // <-- Ajout ici
+                                outgoingCv.notify_all();
                                 break;
                             }
                             if (n == 0) {
-                                std::cout << "[DEBUG][CLIENT] Le serveur a fermé la connexion (n == 0)." << std::endl;
                                 disconnected = true;
-                                outgoingCv.notify_all(); // <-- Ajout ici
+                                outgoingCv.notify_all();
                                 break;
                             }
                             std::istream is(&buffer);
@@ -195,13 +201,12 @@ void MainWindow::startNetwork() {
                             std::getline(is, msg);
                             if (!msg.empty()) {
                                 QMetaObject::invokeMethod(this, "appendReceivedMessage", Qt::QueuedConnection,
-                                    Q_ARG(QString, "[Serveur] : " + QString::fromStdString(msg)));
+                                    Q_ARG(QString, "[Server] : " + QString::fromStdString(msg)));
                             }
                         }
                     } catch (...) {
-                        std::cout << "[DEBUG][CLIENT] Exception dans le thread reader, déconnexion détectée." << std::endl;
                         disconnected = true;
-                        outgoingCv.notify_all(); // <-- Ajout ici
+                        outgoingCv.notify_all();
                     }
                 });
 
@@ -231,17 +236,15 @@ void MainWindow::startNetwork() {
 
                 if (disconnected && !stopNetwork) {
                     isClient = false;
-                    // Ne pas faire break ici, laisser la boucle continuer pour passer en mode serveur
+                    // let the loop continue to switch to server mode
                 } else {
                     break;
                 }
             } catch (...) {
                 isClient = false;
-                // Ne pas faire break ici non plus
             }
 
             if (!isClient && !stopNetwork) {
-                std::cout << "[DEBUG][CLIENT] Le client devient serveur." << std::endl;
                 // --- SERVER MODE ---
                 std::atomic<bool> stopUdp{false};
                 std::thread udpDiscoveryThread([&io, &stopUdp]() {
@@ -253,23 +256,23 @@ void MainWindow::startNetwork() {
                 asio::ip::tcp::endpoint endpoint(asio::ip::tcp::v4(), Server::PORT);
 
                 asio::error_code ec;
-                acceptor.open(endpoint.protocol(), ec);
+                asio::error_code er = acceptor.open(endpoint.protocol(), ec);
                 if (ec) {
                     stopUdp = true;
                     if (udpDiscoveryThread.joinable()) udpDiscoveryThread.join();
                     std::this_thread::sleep_for(std::chrono::milliseconds(500));
                     continue;
                 }
-                acceptor.set_option(asio::socket_base::reuse_address(true), ec);
+                asio::error_code error = acceptor.set_option(asio::socket_base::reuse_address(true), ec);
                 if (ec) {
                     stopUdp = true;
                     if (udpDiscoveryThread.joinable()) udpDiscoveryThread.join();
                     std::this_thread::sleep_for(std::chrono::milliseconds(500));
                     continue;
                 }
-                acceptor.bind(endpoint, ec);
+                asio::error_code errorBind = acceptor.bind(endpoint, ec);
                 if (ec) {
-                    // Port déjà utilisé : repasser client sans crash
+                    // Port already in use: switch back to client mode without crashing
                     stopUdp = true;
                     if (udpDiscoveryThread.joinable()) udpDiscoveryThread.join();
                     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -277,20 +280,19 @@ void MainWindow::startNetwork() {
                 }
                 acceptor.listen();
 
-                // --- Correction : attendre qu'au moins un client soit connecté avant d'accepter les messages à envoyer ---
+                // Waiting for at least one client to connect before accepting messages to send
                 std::vector<std::shared_ptr<asio::ip::tcp::socket>> clients;
                 std::mutex clientsMutex;
                 std::atomic<bool> serverRunning{true};
                 std::atomic<bool> hasClient{false};
 
-                // Thread d'envoi depuis l'UI
+                // Thread for sending messages from the UI
                 std::thread sender([this, &clients, &clientsMutex, &serverRunning, &hasClient]() {
                     while (!stopNetwork && serverRunning) {
                         std::unique_lock<std::mutex> lock(outgoingMutex);
                         outgoingCv.wait(lock, [this] { return !outgoingMessages.empty() || stopNetwork; });
                         if (stopNetwork) break;
                         while (!outgoingMessages.empty()) {
-                            // --- Correction : attendre qu'il y ait au moins un client ---
                             if (!hasClient) {
                                 lock.unlock();
                                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -323,7 +325,6 @@ void MainWindow::startNetwork() {
                             std::string msg;
                             std::getline(is, msg);
                             if (!msg.empty()) {
-                                std::cout << "[DEBUG][SERVER] Message reçu du client : " << msg << std::endl;
                                 QMetaObject::invokeMethod(this, "appendReceivedMessage", Qt::QueuedConnection,
                                     Q_ARG(QString, "[Client] : " + QString::fromStdString(msg)));
                                 std::lock_guard<std::mutex> lock(clientsMutex);
@@ -348,7 +349,7 @@ void MainWindow::startNetwork() {
                     while (!stopNetwork) {
                         auto socket = std::make_shared<asio::ip::tcp::socket>(io);
                         asio::error_code ec3;
-                        acceptor.accept(*socket, ec3);
+                        asio::error_code errorAcceptor = acceptor.accept(*socket, ec3);
                         if (ec3) {
                             if (ec3 == asio::error::address_in_use) {
                                 serverRunning = false;
@@ -360,8 +361,6 @@ void MainWindow::startNetwork() {
                             std::lock_guard<std::mutex> lock(clientsMutex);
                             clients.push_back(socket);
                         }
-                        std::cout << "[DEBUG][SERVER] Nouveau client connecté depuis : " 
-                                  << socket->remote_endpoint().address().to_string() << std::endl;
                         clientThreads.emplace_back(handle_client, socket);
                         hasClient = true;
                     }
@@ -386,12 +385,11 @@ void MainWindow::startNetwork() {
     });
 }
 
-void MainWindow::closeEvent(QCloseEvent *event)
-{
+void MainWindow::closeEvent(QCloseEvent *event) {
     stopNetwork = true;
     outgoingCv.notify_all();
     if (networkThread.joinable()) {
-        networkThread.detach(); // Ne pas bloquer la fermeture de la fenêtre
+        networkThread.detach(); // Do not block window closing
     }
     QMainWindow::closeEvent(event);
 }

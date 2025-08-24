@@ -119,7 +119,6 @@ std::optional<std::string> Client::discoverServerIp(asio::io_context& io) {
     socket.set_option(socket_base::broadcast(true));
 
     std::string broadcast_ip = getBroadcastAddress();
-    std::cout << "[DEBUG] Broadcast address used: " << broadcast_ip << std::endl;
     ip::udp::endpoint broadcast_endpoint(ip::make_address(broadcast_ip), 54001);
     std::string message = "DISCOVER_CLIPSERVER";
     socket.send_to(buffer(message), broadcast_endpoint);
@@ -133,11 +132,9 @@ std::optional<std::string> Client::discoverServerIp(asio::io_context& io) {
         asio::error_code ec;
         size_t len = socket.receive_from(buffer(recvBuf), senderEndpoint, 0, ec);
         if (!ec && std::string(recvBuf.data(), len) == "I_AM_CLIPSERVER") {
-            std::cout << "[DEBUG] Server found at: " << senderEndpoint.address().to_string() << std::endl;
             return senderEndpoint.address().to_string();
         }
     }
-    std::cout << "[DEBUG] No server found on the network." << std::endl;
     return std::nullopt;
 }
 
@@ -148,7 +145,6 @@ void Client::run(asio::io_context& io) {
     }
 
     std::string SERVER_IP = *ip;
-    std::cout << "[DEBUG] Connecting to server at: " << SERVER_IP << ":" << Server::PORT << std::endl;
     asio::ip::tcp::socket socket(io);
     asio::ip::tcp::endpoint endpoint(asio::ip::make_address(SERVER_IP), Server::PORT);
     std::cout << "Client mode : connection made to server" << std::endl;
@@ -156,7 +152,6 @@ void Client::run(asio::io_context& io) {
     asio::error_code ec;
     asio::error_code socketError = socket.connect(endpoint, ec);
     if (ec || socketError) {
-        std::cerr << "[DEBUG] TCP connection failed: " << ec.message() << std::endl;
         throw std::runtime_error("TCP connection failed");
     }
 
@@ -169,12 +164,10 @@ void Client::run(asio::io_context& io) {
                 asio::error_code ec;
                 std::size_t n = asio::read_until(socket, buffer, '\n', ec);
                 if (ec) {
-                    std::cout << "[DEBUG] Erreur de lecture ou déconnexion du serveur : " << ec.message() << std::endl;
                     disconnected = true;
                     break;
                 }
                 if (n == 0) {
-                    std::cout << "[DEBUG] Le serveur a fermé la connexion (n == 0)." << std::endl;
                     disconnected = true;
                     break;
                 }
@@ -188,11 +181,9 @@ void Client::run(asio::io_context& io) {
                             << std::flush;
             }
         } catch (const std::exception& e) {
-            std::cout << "[DEBUG] Exception dans le thread reader : " << e.what() << std::endl;
             disconnected = true;
         }
         if (disconnected) {
-            std::cout << "[DEBUG] Déconnexion détectée, le client devient serveur." << std::endl;
             asio::io_context new_io;
             Server server;
             server.run(new_io);
@@ -208,7 +199,6 @@ void Client::run(asio::io_context& io) {
         asio::error_code write_ec;
         asio::write(socket, asio::buffer(input), write_ec);
         if (write_ec) {
-            std::cout << "[DEBUG] Erreur d'écriture, probablement déconnecté du serveur : " << write_ec.message() << std::endl;
             disconnected = true;
             break;
         }

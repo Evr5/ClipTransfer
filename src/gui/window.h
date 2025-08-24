@@ -1,8 +1,6 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
-#pragma once
-
 #include <QMainWindow>
 #include <QThread>
 #include <QMainWindow>

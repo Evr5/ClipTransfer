@@ -61,7 +61,7 @@ void Server::run(asio::io_context& io) {
             std::cout << "Accept error: " << ec.message() << std::endl;
             continue;
         }
-        std::cout << "[DEBUG] New client connected from: " << socket->remote_endpoint().address().to_string() << std::endl;
+        
         {
             std::lock_guard<std::mutex> lock(clientsMutex);
             clients.push_back(socket);
