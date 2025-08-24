@@ -79,12 +79,6 @@ You may also see a Windows Firewall prompt asking for network access—this is e
 - TCP/IP (LAN only)
 - CMake
 
-## 📦 Future Plans
-
-- Clipboard auto-sync
-- Bi-directional messaging
-- GUI support (with QT in progress)
-
 ## 📁 License
 
 [MIT](./LICENSE)
