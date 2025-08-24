@@ -63,7 +63,7 @@ Choose the one that suits your preference:
 
 ## 🖥️ Windows Users
 
-If you prefer not to compile the project, you can directly download and run the precompiled [clip-transfer.exe](https://github.com/Evr5/ClipTransfer/releases/download/v1.0.0/clip-transfer.exe).
+If you prefer not to compile the project, you can directly download and run the precompiled [clip-transfer.exe](https://github.com/Evr5/ClipTransfer/releases/download/v1.1.0/clip-transfer.exe).
 
 > ⚠️ **Important**: On first launch, Windows Defender SmartScreen may block the app because it's not signed.
 >
