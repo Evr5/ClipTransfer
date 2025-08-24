@@ -72,13 +72,6 @@ If you prefer not to compile the project, you can directly download and run the 
 
 You may also see a Windows Firewall prompt asking for network access—this is expected. You can safely allow access to **Private networks** to enable communication between devices on the same LAN.
 
-## 🛑 How to stop the program
-
-To gracefully shut down the application, you can either:
-
-- Press **Ctrl + C** in the terminal or console window  
-- Or simply **close the terminal window**
-
 ## 🔧 Tech Stack
 
 - C++17
