@@ -1,4 +1,5 @@
 #include "ClipTransfer/chat.hpp"
+#include <sys/types.h>
 
 std::string generate_client_id() {
     static const char chars[] = "0123456789abcdef";
@@ -154,9 +155,9 @@ void ChatBackend::sendLoop() {
             lock.unlock();
 
             std::string packet = clientId_ + "|" + text;
-            int len = static_cast<int>(packet.size());
+            size_t len = packet.size();
 
-            int sent = ::sendto(sockfd_,
+            ssize_t sent = ::sendto(sockfd_,
                                 packet.data(),
                                 len,
                                 0,
@@ -182,7 +183,7 @@ void ChatBackend::recvLoop() {
 #else
         socklen_t srclen = sizeof(src);
 #endif
-        int received = ::recvfrom(sockfd_,
+        ssize_t received = ::recvfrom(sockfd_,
                                   buffer,
                                   BUFFER_SIZE,
                                   0,
@@ -195,7 +196,7 @@ void ChatBackend::recvLoop() {
                 continue;
             }
 #else
-            if (errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR) {
+            if (errno == EAGAIN || errno == EINTR) {
                 continue;
             }
 #endif
