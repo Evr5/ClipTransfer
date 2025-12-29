@@ -1,230 +1,132 @@
 #include "ClipTransfer/chat.hpp"
-#include <sys/types.h>
+#include <QFile>
+#include <QFileInfo>
+#include <QDataStream>
+#include <QNetworkInterface>
 
-std::string generate_client_id() {
-    static const char chars[] = "0123456789abcdef";
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> d(0, 15);
+ChatBackend::ChatBackend(QObject *parent) : QObject(parent) {
+    tcpServer_ = new QTcpServer(this);
+    udpDiscovery_ = new QUdpSocket(this);
+    discoveryTimer_ = new QTimer(this);
 
-    std::string id;
-    id.reserve(16);
-    for (int i = 0; i < 16; ++i) {
-        id.push_back(chars[d(gen)]);
-    }
-    return id;
+    connect(tcpServer_, &QTcpServer::newConnection, this, &ChatBackend::onNewConnection);
+    connect(udpDiscovery_, &QUdpSocket::readyRead, this, &ChatBackend::readPresence);
+    connect(discoveryTimer_, &QTimer::timeout, this, &ChatBackend::broadcastPresence);
 }
 
-ChatBackend::ChatBackend()
-    : clientId_(generate_client_id()) {}
-
-ChatBackend::~ChatBackend() {
-    stop();
-}
-
-bool ChatBackend::start(MessageCallback cb) {
-    if (running_) return true;
-    callback_ = std::move(cb);
-
-#ifdef _WIN32
-    WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-        std::cerr << "WSAStartup failed\n";
-        return false;
-    }
-#endif
-
-    sockfd_ = ::socket(AF_INET, SOCK_DGRAM, 0);
-    if (sockfd_ == INVALID_SOCKET) {
-        std::cerr << "socket() failed\n";
-#ifdef _WIN32
-        WSACleanup();
-#endif
-        return false;
-    }
-
-    // Autoriser le broadcast
-    int yes = 1;
-    if (setsockopt(sockfd_, SOL_SOCKET, SO_BROADCAST,
-                   reinterpret_cast<const char*>(&yes),
-                   sizeof(yes)) < 0) {
-        std::cerr << "setsockopt(SO_BROADCAST) failed\n";
-        closesocket(sockfd_);
-#ifdef _WIN32
-        WSACleanup();
-#endif
-        return false;
-    }
-
-    // Réutilisation d'adresse
-    if (setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR,
-                   reinterpret_cast<const char*>(&yes),
-                   sizeof(yes)) < 0) {
-        std::cerr << "setsockopt(SO_REUSEADDR) failed\n";
-        // non fatal, on continue
-    }
-
-    // Timeout de réception pour ne pas bloquer à l'infini
-#ifdef _WIN32
-    {
-        int timeoutMs = 200;
-        setsockopt(sockfd_, SOL_SOCKET, SO_RCVTIMEO,
-                   reinterpret_cast<const char*>(&timeoutMs),
-                   sizeof(timeoutMs));
-    }
-#else
-    {
-        timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = 200000; // 200 ms
-        setsockopt(sockfd_, SOL_SOCKET, SO_RCVTIMEO,
-                   &tv, sizeof(tv));
-    }
-#endif
-
-    // Bind sur tous les interfaces
-    sockaddr_in addr{};
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(PORT);
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-    if (bind(sockfd_, reinterpret_cast<sockaddr*>(&addr),
-             sizeof(addr)) < 0) {
-        std::cerr << "bind() failed\n";
-        closesocket(sockfd_);
-#ifdef _WIN32
-        WSACleanup();
-#endif
-        return false;
-    }
-
-    running_ = true;
-
-    recvThread_ = std::thread(&ChatBackend::recvLoop, this);
-    sendThread_ = std::thread(&ChatBackend::sendLoop, this);
-
+bool ChatBackend::start(int port) {
+    if (!tcpServer_->listen(QHostAddress::Any, static_cast<quint16>(port))) return false;
+    
+    // Discovery UDP sur le port 50001
+    udpDiscovery_->bind(50001, QUdpSocket::ShareAddress);
+    discoveryTimer_->start(3000); 
     return true;
 }
 
 void ChatBackend::stop() {
-    if (!running_) return;
-    running_ = false;
-    outCv_.notify_all();
-
-    if (sendThread_.joinable()) sendThread_.join();
-    if (recvThread_.joinable()) recvThread_.join();
-
-    if (sockfd_ != INVALID_SOCKET) {
-        closesocket(sockfd_);
-        sockfd_ = INVALID_SOCKET;
-    }
-
-#ifdef _WIN32
-    WSACleanup();
-#endif
+    discoveryTimer_->stop();
+    tcpServer_->close();
+    udpDiscovery_->close();
 }
 
-void ChatBackend::enqueueMessage(const std::string& text) {
-    if (!running_) return;
-    {
-        std::lock_guard<std::mutex> lock(outMutex_);
-        outgoing_.push(text);
-    }
-    outCv_.notify_one();
+void ChatBackend::broadcastPresence() {
+    QByteArray datagram = nickname_.toUtf8();
+    udpDiscovery_->writeDatagram(datagram, QHostAddress::Broadcast, 50001);
 }
 
-void ChatBackend::sendLoop() {
-    sockaddr_in dest{};
-    dest.sin_family = AF_INET;
-    dest.sin_port = htons(PORT);
-    dest.sin_addr.s_addr = inet_addr(BROADCAST_ADDR);
-
-    while (true) {
-        std::unique_lock<std::mutex> lock(outMutex_);
-        outCv_.wait(lock, [this]() {
-            return !running_ || !outgoing_.empty();
-        });
-
-        if (!running_ && outgoing_.empty()) {
-            break;
+void ChatBackend::readPresence() {
+    while (udpDiscovery_->hasPendingDatagrams()) {
+        QHostAddress senderIp;
+        udpDiscovery_->readDatagram(nullptr, 0, &senderIp);
+        
+        // On n'ajoute pas sa propre IP
+        bool isLocal = false;
+        for (const auto &iface : QNetworkInterface::allAddresses()) {
+            if (iface == senderIp) { isLocal = true; break; }
         }
-
-        while (!outgoing_.empty()) {
-            std::string text = std::move(outgoing_.front());
-            outgoing_.pop();
-            lock.unlock();
-
-            std::string packet = clientId_ + "|" + nickname_ + "|" + text;
-            size_t len = packet.size();
-
-            ssize_t sent = ::sendto(sockfd_,
-                                packet.data(),
-                                len,
-                                0,
-                                reinterpret_cast<sockaddr*>(&dest),
-                                sizeof(dest));
-            if (sent < 0) {
-                // on log juste, on ne plante pas
-                std::cerr << "sendto() failed\n";
-            }
-
-            lock.lock();
+        
+        if (!isLocal) {
+            peers_.insert(senderIp);
         }
     }
 }
 
-void ChatBackend::recvLoop() {
-    char buffer[BUFFER_SIZE];
+void ChatBackend::onNewConnection() {
+    QTcpSocket *socket = tcpServer_->nextPendingConnection();
+    connect(socket, &QTcpSocket::readyRead, this, &ChatBackend::onReadyRead);
+    connect(socket, &QTcpSocket::disconnected, socket, &QTcpSocket::deleteLater);
+}
 
-    while (running_) {
-        sockaddr_in src{};
-#ifdef _WIN32
-        int srclen = sizeof(src);
-#else
-        socklen_t srclen = sizeof(src);
-#endif
-        ssize_t received = ::recvfrom(sockfd_,
-                                  buffer,
-                                  BUFFER_SIZE,
-                                  0,
-                                  reinterpret_cast<sockaddr*>(&src),
-                                  &srclen);
-        if (received <= 0) {
-#ifdef _WIN32
-            int err = WSAGetLastError();
-            if (err == WSAETIMEDOUT || err == WSAEWOULDBLOCK) {
-                continue;
-            }
-#else
-            if (errno == EAGAIN || errno == EINTR) {
-                continue;
-            }
-#endif
-            if (!running_) break;
-            // autre erreur : on log et on continue
-            std::cerr << "recvfrom() failed\n";
-            continue;
+void ChatBackend::sendMessage(const QString &text) {
+    QByteArray data;
+    QDataStream out(&data, QIODevice::WriteOnly);
+    out << static_cast<int>(Message) << nickname_ << text;
+    transmit(data);
+}
+
+void ChatBackend::transmit(const QByteArray &data) {
+    for (const QHostAddress &ad : peers_) {
+        QTcpSocket socket;
+        socket.connectToHost(ad, static_cast<quint16>(tcpServer_->serverPort()));
+        if (socket.waitForConnected(500)) {
+            socket.write(data);
+            socket.waitForBytesWritten();
+            socket.disconnectFromHost();
         }
+    }
+}
 
-        std::string msg(buffer, buffer + received);
+void ChatBackend::sendFile(const QString &filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) return;
 
-        // Format : "<CLIENT_ID>|<PSEUDO>|<texte>"
-        auto pos1 = msg.find('|');
-        if (pos1 == std::string::npos) continue;
-
-        auto pos2 = msg.find('|', pos1 + 1);
-        if (pos2 == std::string::npos) continue; // pas de pseudo => paquet invalide
-
-        std::string senderId = msg.substr(0, pos1);
-        if (senderId == clientId_) continue; // ignorer nos propres messages
-
-        std::string senderName = msg.substr(pos1 + 1, pos2 - (pos1 + 1));
-        std::string text = msg.substr(pos2 + 1);
-
-        if (senderName.empty() || text.empty()) continue; // optionnel: refuser vide
-
-        if (callback_) {
-            callback_(senderName, text);
+    QFileInfo info(file);
+    QByteArray header;
+    QDataStream out(&header, QIODevice::WriteOnly);
+    out << static_cast<int>(FileHeader) << nickname_ << info.fileName() << static_cast<qint64>(file.size());
+    
+    for (const auto &ip : peers_) {
+        QTcpSocket socket;
+        socket.connectToHost(ip, static_cast<quint16>(tcpServer_->serverPort()));
+        if (socket.waitForConnected(1000)) {
+            socket.write(header);
+            socket.waitForBytesWritten();
+            while (!file.atEnd()) {
+                socket.write(file.read(64000));
+                socket.waitForBytesWritten();
+            }
+            socket.disconnectFromHost();
         }
+        file.seek(0); // Reset pour le prochain peer
+    }
+}
+
+void ChatBackend::onReadyRead() {
+    QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
+    if (!socket) return;
+    QDataStream in(socket);
+    
+    int type;
+    QString from;
+    in >> type >> from;
+
+    if (type == Message) {
+        QString text;
+        in >> text;
+        emit newMessage(from, text);
+    } else if (type == FileHeader) {
+        QString fileName;
+        qint64 size;
+        in >> fileName >> size;
+        
+        QFile *dest = new QFile("received_" + fileName);
+        if (dest->open(QIODevice::WriteOnly)) {
+            while (dest->size() < size && (socket->bytesAvailable() > 0 || socket->waitForReadyRead(5000))) {
+                dest->write(socket->readAll());
+            }
+            dest->close();
+            emit newMessage("Système", "Fichier reçu : " + fileName);
+        }
+        dest->deleteLater();
     }
 }

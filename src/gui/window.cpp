@@ -1,5 +1,4 @@
 #include "window.h"
-
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -11,10 +10,10 @@
 #include <QSettings>
 #include <QTimer>
 #include <QMessageBox>
+#include <QFileDialog>
+#include <QFileInfo>
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
-{
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     clipboard_ = QGuiApplication::clipboard();
     setupUi();
 
@@ -22,24 +21,16 @@ MainWindow::MainWindow(QWidget *parent)
         QTimer::singleShot(0, qApp, &QCoreApplication::quit);
         return;
     }
-    chat_.setNickname(nickname_.toStdString());
+    chat_.setNickname(nickname_);
 
-    // Démarre le backend réseau
-    bool ok = chat_.start(
-        [this](const std::string& fromName, const std::string& text) {
-            QString qFrom = QString::fromStdString(fromName);
-            QString qText = QString::fromStdString(text);
+    // Connexion : on formate le message reçu avant de l'afficher
+    connect(&chat_, &ChatBackend::newMessage, this, [this](const QString &from, const QString &text) {
+        lastReceived_ = text;
+        appendReceivedMessage("[" + from + "] : " + text);
+    });
 
-            // On repasse sur le thread GUI
-            QMetaObject::invokeMethod(this, [this, qFrom, qText]() {
-                lastReceived_ = qText;
-                appendReceivedMessage("[" + qFrom + "] : " + qText);
-            });
-        }
-    );
-
-    if (!ok) {
-        appendReceivedMessage("[Erreur] Impossible de démarrer le chat réseau.");
+    if (!chat_.start()) {
+        appendReceivedMessage("[Erreur] Impossible de démarrer le serveur.");
     }
 }
 
@@ -51,7 +42,7 @@ void MainWindow::setupUi() {
     auto *central = new QWidget(this);
     auto *mainLayout = new QVBoxLayout(central);
 
-    auto *title = new QLabel("ClipTransfer – Chat LAN (UDP broadcast)", this);
+    auto *title = new QLabel("ClipTransfer – LAN Chat", this);
     title->setStyleSheet("font-weight: bold; font-size: 16px;");
 
     history_ = new QTextEdit(this);
@@ -60,14 +51,16 @@ void MainWindow::setupUi() {
     manualInput_ = new QLineEdit(this);
     manualInput_->setPlaceholderText("Écrire un message...");
 
-    btnSendClip_ = new QPushButton("Envoyer le presse-papiers", this);
-    btnSendManual_ = new QPushButton("Envoyer le texte", this);
-    btnCopyLast_ = new QPushButton("Copier dernier reçu", this);
+    btnSendClip_ = new QPushButton("Envoyer Presse-papiers", this);
+    btnSendManual_ = new QPushButton("Envoyer Texte", this);
+    btnCopyLast_ = new QPushButton("Copier dernier", this);
+    auto *btnFile = new QPushButton("Envoyer Fichier", this);
 
     auto *btnRow = new QHBoxLayout();
     btnRow->addWidget(btnSendClip_);
     btnRow->addWidget(btnSendManual_);
     btnRow->addWidget(btnCopyLast_);
+    btnRow->addWidget(btnFile);
 
     mainLayout->addWidget(title);
     mainLayout->addWidget(history_);
@@ -76,46 +69,45 @@ void MainWindow::setupUi() {
 
     setCentralWidget(central);
 
-    // Connexions
-    connect(btnSendClip_,   &QPushButton::clicked,
-            this,           &MainWindow::sendClipboard);
-    connect(btnSendManual_, &QPushButton::clicked,
-            this,           &MainWindow::sendManualMessage);
-    connect(btnCopyLast_,   &QPushButton::clicked,
-            this,           &MainWindow::copyLastReceived);
+    connect(btnSendClip_,   &QPushButton::clicked, this, &MainWindow::sendClipboard);
+    connect(btnSendManual_, &QPushButton::clicked, this, &MainWindow::sendManualMessage);
+    connect(btnCopyLast_,   &QPushButton::clicked, this, &MainWindow::copyLastReceived);
+    connect(manualInput_,   &QLineEdit::returnPressed, this, &MainWindow::sendManualMessage);
 
-    connect(manualInput_, &QLineEdit::returnPressed,
-            this,         &MainWindow::sendManualMessage);
-}
-
-void MainWindow::appendReceivedMessage(const QString &line) {
-    history_->append(line);
-    auto *bar = history_->verticalScrollBar();
-    bar->setValue(bar->maximum());
+    connect(btnFile, &QPushButton::clicked, this, [this]() {
+        QString path = QFileDialog::getOpenFileName(this, "Sélectionner un fichier");
+        if (!path.isEmpty()) {
+            chat_.sendFile(path);
+            appendReceivedMessage("[Moi] Envoi de : " + QFileInfo(path).fileName());
+        }
+    });
 }
 
 void MainWindow::sendClipboard() {
     if (!clipboard_) return;
     QString text = clipboard_->text();
     if (text.isEmpty()) return;
-
-    chat_.enqueueMessage(text.toStdString());
-    appendReceivedMessage("[" + nickname_ + "] : " + text);
+    chat_.sendMessage(text);
+    appendReceivedMessage("[Moi] : " + text);
 }
 
 void MainWindow::sendManualMessage() {
     QString text = manualInput_->text();
     if (text.isEmpty()) return;
-
     manualInput_->clear();
-    chat_.enqueueMessage(text.toStdString());
-    appendReceivedMessage("[" + nickname_ + "] : " + text);
+    chat_.sendMessage(text);
+    appendReceivedMessage("[Moi] : " + text);
+}
+
+void MainWindow::appendReceivedMessage(const QString &line) {
+    history_->append(line);
+    history_->verticalScrollBar()->setValue(history_->verticalScrollBar()->maximum());
 }
 
 void MainWindow::copyLastReceived() {
-    if (!clipboard_) return;
-    if (lastReceived_.isEmpty()) return;
-    clipboard_->setText(lastReceived_);
+    if (clipboard_ && !lastReceived_.isEmpty()) {
+        clipboard_->setText(lastReceived_);
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -126,34 +118,14 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 bool MainWindow::ensureNickname() {
     QSettings settings;
     nickname_ = settings.value("user/nickname", "").toString().trimmed();
+    if (!nickname_.isEmpty()) return true;
 
-    while (nickname_.isEmpty()) {
-        bool ok = false;
-        QString value = QInputDialog::getText(
-            this,
-            "Choisir un pseudo",
-            "Entrez votre pseudo (obligatoire) :",
-            QLineEdit::Normal,
-            "",
-            &ok
-        );
-
-        if (!ok) {
-            return false; // annulation -> quitter
-        }
-
-        value = value.trimmed();
-        if (value.isEmpty()) {
-            continue;
-        }
-        if (value.contains('|')) {
-            QMessageBox::warning(this, "Pseudo invalide", "Le caractère '|' n'est pas autorisé.");
-            continue;
-        }
-
-        nickname_ = value;
+    bool ok;
+    QString val = QInputDialog::getText(this, "Pseudo", "Entrez votre pseudo :", QLineEdit::Normal, "", &ok);
+    if (ok && !val.trimmed().isEmpty()) {
+        nickname_ = val.trimmed();
         settings.setValue("user/nickname", nickname_);
+        return true;
     }
-
-    return true;
+    return false;
 }

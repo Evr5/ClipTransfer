@@ -96,6 +96,7 @@ endif()
 # Source and include directories
 file(GLOB_RECURSE SOURCES
     src/*.cpp
+    include/*.hpp
 )
 
 set(CMAKE_AUTOMOC ON)
@@ -136,12 +137,13 @@ endif()
 target_include_directories(ClipTransfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Find and link Qt5
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
+find_package(Qt5 COMPONENTS Widgets Network REQUIRED)
 target_link_libraries(ClipTransfer
     PRIVATE
         Qt5::Widgets
         Qt5::Gui
         Qt5::Core
+        Qt5::Network
 )
 
 # Installation
