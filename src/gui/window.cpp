@@ -7,6 +7,10 @@
 #include <QGuiApplication>
 #include <QCloseEvent>
 #include <QScrollBar>
+#include <QInputDialog>
+#include <QSettings>
+#include <QTimer>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -14,10 +18,16 @@ MainWindow::MainWindow(QWidget *parent)
     clipboard_ = QGuiApplication::clipboard();
     setupUi();
 
+    if (!ensureNickname()) {
+        QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+        return;
+    }
+    chat_.setNickname(nickname_.toStdString());
+
     // Démarre le backend réseau
     bool ok = chat_.start(
-        [this](const std::string& fromId, const std::string& text) {
-            QString qFrom = QString::fromStdString(fromId);
+        [this](const std::string& fromName, const std::string& text) {
+            QString qFrom = QString::fromStdString(fromName);
             QString qText = QString::fromStdString(text);
 
             // On repasse sur le thread GUI
@@ -90,7 +100,7 @@ void MainWindow::sendClipboard() {
     if (text.isEmpty()) return;
 
     chat_.enqueueMessage(text.toStdString());
-    appendReceivedMessage("[Vous] : " + text);
+    appendReceivedMessage("[" + nickname_ + "] : " + text);
 }
 
 void MainWindow::sendManualMessage() {
@@ -99,7 +109,7 @@ void MainWindow::sendManualMessage() {
 
     manualInput_->clear();
     chat_.enqueueMessage(text.toStdString());
-    appendReceivedMessage("[Vous] : " + text);
+    appendReceivedMessage("[" + nickname_ + "] : " + text);
 }
 
 void MainWindow::copyLastReceived() {
@@ -111,4 +121,39 @@ void MainWindow::copyLastReceived() {
 void MainWindow::closeEvent(QCloseEvent *event) {
     chat_.stop();
     QMainWindow::closeEvent(event);
+}
+
+bool MainWindow::ensureNickname() {
+    QSettings settings;
+    nickname_ = settings.value("user/nickname", "").toString().trimmed();
+
+    while (nickname_.isEmpty()) {
+        bool ok = false;
+        QString value = QInputDialog::getText(
+            this,
+            "Choisir un pseudo",
+            "Entrez votre pseudo (obligatoire) :",
+            QLineEdit::Normal,
+            "",
+            &ok
+        );
+
+        if (!ok) {
+            return false; // annulation -> quitter
+        }
+
+        value = value.trimmed();
+        if (value.isEmpty()) {
+            continue;
+        }
+        if (value.contains('|')) {
+            QMessageBox::warning(this, "Pseudo invalide", "Le caractère '|' n'est pas autorisé.");
+            continue;
+        }
+
+        nickname_ = value;
+        settings.setValue("user/nickname", nickname_);
+    }
+
+    return true;
 }

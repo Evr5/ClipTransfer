@@ -35,7 +35,7 @@ std::string generate_client_id();
 
 class ChatBackend {
 public:
-    using MessageCallback = std::function<void(const std::string& fromId,
+    using MessageCallback = std::function<void(const std::string& fromName,
                                                const std::string& text)>;
 
     ChatBackend();
@@ -49,7 +49,11 @@ public:
 
     std::string clientId() const { return clientId_; }
 
+    void setNickname(std::string nickname) { nickname_ = std::move(nickname); }
+
 private:
+    std::string nickname_{"Vous"};
+    
     void recvLoop();
     void sendLoop();
 

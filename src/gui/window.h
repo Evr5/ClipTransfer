@@ -29,6 +29,7 @@ private:
     QPushButton *btnCopyLast_ = nullptr;
     QLineEdit  *manualInput_  = nullptr;
     QClipboard *clipboard_    = nullptr;
+    QString nickname_;
 
     // Backend réseau
     ChatBackend chat_;
@@ -36,6 +37,7 @@ private:
 
     void setupUi();
     void appendReceivedMessage(const QString &line);
+    bool ensureNickname();
 
 protected:
     void closeEvent(QCloseEvent *event) override;

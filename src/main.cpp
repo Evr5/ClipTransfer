@@ -1,10 +1,13 @@
 #include <QApplication>
 #include <QStyleFactory>
+#include <QCoreApplication>
 
 #include "gui/window.h"
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
+    QCoreApplication::setOrganizationName("ClipTransfer");
+    QCoreApplication::setApplicationName("ClipTransfer");
     QApplication::setStyle(QStyleFactory::create("Fusion"));
 
     QPalette palette;

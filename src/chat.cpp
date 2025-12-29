@@ -154,7 +154,7 @@ void ChatBackend::sendLoop() {
             outgoing_.pop();
             lock.unlock();
 
-            std::string packet = clientId_ + "|" + text;
+            std::string packet = clientId_ + "|" + nickname_ + "|" + text;
             size_t len = packet.size();
 
             ssize_t sent = ::sendto(sockfd_,
@@ -208,18 +208,23 @@ void ChatBackend::recvLoop() {
 
         std::string msg(buffer, buffer + received);
 
-        // Format: "<CLIENT_ID>|<texte>"
-        auto pos = msg.find('|');
-        if (pos == std::string::npos) continue;
+        // Format : "<CLIENT_ID>|<PSEUDO>|<texte>"
+        auto pos1 = msg.find('|');
+        if (pos1 == std::string::npos) continue;
 
-        std::string senderId = msg.substr(0, pos);
-        std::string text = msg.substr(pos + 1);
+        auto pos2 = msg.find('|', pos1 + 1);
+        if (pos2 == std::string::npos) continue; // pas de pseudo => paquet invalide
 
-        // Ne pas afficher nos propres messages
-        if (senderId == clientId_) continue;
+        std::string senderId = msg.substr(0, pos1);
+        if (senderId == clientId_) continue; // ignorer nos propres messages
+
+        std::string senderName = msg.substr(pos1 + 1, pos2 - (pos1 + 1));
+        std::string text = msg.substr(pos2 + 1);
+
+        if (senderName.empty() || text.empty()) continue; // optionnel: refuser vide
 
         if (callback_) {
-            callback_(senderId, text);
+            callback_(senderName, text);
         }
     }
 }
