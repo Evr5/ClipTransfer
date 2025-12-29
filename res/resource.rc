@@ -1,2 +1,29 @@
-// resources/resource.rc
+// res/resource.rc
 IDI_ICON1 ICON "icon.ico"
+
+1 VERSIONINFO
+FILEVERSION 2,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK 0x3fL
+FILEOS 0x40004L
+FILETYPE 0x1L
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040C04B0"
+    BEGIN
+      VALUE "CompanyName", " "
+      VALUE "Comments", "Client LAN multicast"
+      VALUE "FileDescription", "ClipTransfer is a lightweight application that allows seamless sharing of clipboard or text snippets between devices on the same local network (LAN)."
+      VALUE "InternalName", "clip-transfer"
+      VALUE "OriginalFilename", "ClipTransfer.exe"
+      VALUE "ProductName", "ClipTransfer"
+      VALUE "FileVersion", "2.0.0"
+    END
+  END
+
+  BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x040C, 1200
+    END
+END

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(ClipTransfer VERSION 1.1.0 LANGUAGES CXX)
+project(ClipTransfer VERSION 2.0.0 LANGUAGES CXX)
 
 # Options
 option(BUILD_STATIC "Link standard libs statically" OFF)
@@ -98,20 +98,20 @@ file(GLOB_RECURSE SOURCES
     src/*.cpp
 )
 
-# Active l'automoc pour Qt
 set(CMAKE_AUTOMOC ON)
-
-# Main executable
-add_definitions(-DASIO_HEADER_ONLY)
-add_executable(clip-transfer ${SOURCES})
-set_target_properties(clip-transfer PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set(RESOURCES "")
+if (WIN32)
+    set(RESOURCES ${CMAKE_SOURCE_DIR}/res/resource.rc)
+endif()
+add_executable(ClipTransfer ${SOURCES} ${RESOURCES})
+set_target_properties(ClipTransfer PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Position-independent code for shared libraries
 if(WIN32)
     add_compile_definitions(_WIN32_WINNT=0x0600) # Define the minimum Windows version for compatibility
     add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>") # force source encoding to UTF-8 (for Qt, etc.)
-    set_target_properties(clip-transfer PROPERTIES WIN32_EXECUTABLE ON) # Create a GUI application (no console window)
-    target_link_libraries(clip-transfer # Link against Windows libraries
+    set_target_properties(ClipTransfer PROPERTIES WIN32_EXECUTABLE ON) # Create a GUI application (no console window)
+    target_link_libraries(ClipTransfer # Link against Windows libraries
         PRIVATE
             ws2_32
             kernel32
@@ -129,15 +129,15 @@ if(WIN32)
 endif()
 
 if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set_target_properties(clip-transfer PROPERTIES WIN32_EXECUTABLE OFF)
+    set_target_properties(ClipTransfer PROPERTIES WIN32_EXECUTABLE OFF)
 endif()
 
 # Include directories
-target_include_directories(clip-transfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(ClipTransfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Find and link Qt5
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
-target_link_libraries(clip-transfer
+target_link_libraries(ClipTransfer
     PRIVATE
         Qt5::Widgets
         Qt5::Gui
@@ -145,4 +145,4 @@ target_link_libraries(clip-transfer
 )
 
 # Installation
-install(TARGETS clip-transfer RUNTIME DESTINATION bin)
+install(TARGETS ClipTransfer RUNTIME DESTINATION bin)
