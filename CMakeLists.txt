@@ -132,12 +132,6 @@ if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     set_target_properties(clip-transfer PROPERTIES WIN32_EXECUTABLE OFF)
 endif()
 
-# External libraries target
-include(${CMAKE_SOURCE_DIR}/cmake/asio.cmake)
-
-# Link external libraries
-target_link_libraries(clip-transfer PRIVATE asio)
-
 # Include directories
 target_include_directories(clip-transfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
 

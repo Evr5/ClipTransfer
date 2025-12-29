@@ -2,40 +2,40 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QThread>
-#include <QMainWindow>
 #include <QTextEdit>
 #include <QPushButton>
 #include <QLineEdit>
+#include <QClipboard>
+#include <QString>
+
+#include "ClipTransfer/chat.hpp"
 
 class MainWindow : public QMainWindow {
     Q_OBJECT
 public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+    explicit MainWindow(QWidget *parent = nullptr);
+    ~MainWindow() override;
 
 private slots:
     void sendClipboard();
-    void copyLastReceived();
     void sendManualMessage();
-
-public slots:
-    Q_INVOKABLE void appendReceivedMessage(const QString &msg);
+    void copyLastReceived();
 
 private:
-    void setupStyle();
-    void startNetwork();
+    // UI
+    QTextEdit  *history_      = nullptr;
+    QPushButton *btnSendClip_ = nullptr;
+    QPushButton *btnSendManual_ = nullptr;
+    QPushButton *btnCopyLast_ = nullptr;
+    QLineEdit  *manualInput_  = nullptr;
+    QClipboard *clipboard_    = nullptr;
 
-    QTextEdit *receivedMessages = nullptr;
-    QPushButton *btnSendClipboard = nullptr;
-    QPushButton *btnCopyLast = nullptr;
-    QPushButton *btnSendManual = nullptr;
-    QLineEdit *manualInput = nullptr;
-    QClipboard *clipboard = nullptr;
+    // Backend réseau
+    ChatBackend chat_;
+    QString lastReceived_;
 
-    std::thread networkThread;
-    std::atomic<bool> stopNetwork{false};
-    QString lastReceived;
+    void setupUi();
+    void appendReceivedMessage(const QString &line);
 
 protected:
     void closeEvent(QCloseEvent *event) override;
