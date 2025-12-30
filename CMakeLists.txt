@@ -144,6 +144,13 @@ target_link_libraries(ClipTransfer
 # Translations
 set(TS_FILES
     ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_en.ts
+    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_es.ts
+    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_pt.ts
+    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_de.ts
+    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_nl.ts
+    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_zh.ts
+    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_ar.ts
+    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_pl.ts
 )
 
 qt_add_translations(ClipTransfer
