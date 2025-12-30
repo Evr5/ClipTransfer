@@ -2,6 +2,8 @@
 build
 build-static
 bin
+/dist/
+/i18n/*.qm
 clip-transfer
 clip-transfer.exe
 ClipTransfer
