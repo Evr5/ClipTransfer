@@ -1,9 +1,14 @@
 #include "ClipTransfer/chat.hpp"
 #include <sys/types.h>
+#include <algorithm>
 #include <limits>
+#include <iostream>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 #include <chrono>
+#include <random>
+#include <string_view>
 
 namespace {
 
@@ -486,18 +491,6 @@ void ChatBackend::recvLoop() {
 
             PendingMessage& pm = it->second;
             pm.lastUpdate = now;
-
-            if (pm.parts.empty()) {
-                pm.totalParts = total; // Assurez-vous que la variable s'appelle 'total' ici
-
-                try {
-                    pm.parts.resize(static_cast<size_t>(total));
-                    pm.have.resize(static_cast<size_t>(total), 0);
-                } catch (const std::bad_alloc&) {
-                    pending.erase(it);
-                    continue;
-                }
-            }
 
             if (pm.totalParts != total) {
                 pending.erase(it);

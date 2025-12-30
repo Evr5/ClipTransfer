@@ -14,7 +14,6 @@
 #include <QShortcut>
 #include <QKeySequence>
 #include <QMimeData>
-#include <QTextDocument>
 
 namespace {
 
@@ -70,7 +69,6 @@ MainWindow::MainWindow(QWidget *parent)
 
             // On repasse sur le thread GUI
             QMetaObject::invokeMethod(this, [this, qFrom, qText]() {
-                lastReceived_ = qText;
                 lastFullMessageContent_ = qText;
                 appendReceivedMessage("[" + qFrom + "] a envoyé un message.");
             });
@@ -152,37 +150,6 @@ void MainWindow::setupUi() {
     }
 }
 
-QString MainWindow::truncateForDisplay(const QString& text) const {
-    if (text.isEmpty()) return text;
-
-    // 1) Limite en caractères (évite les énormes copies côté QTextDocument)
-    QString limited = text;
-    bool truncated = false;
-    if (limited.size() > kMaxDisplayCharsPerMessage) {
-        limited = limited.left(kMaxDisplayCharsPerMessage);
-        truncated = true;
-    }
-
-    // 2) Limite en lignes
-    const QStringList lines = limited.split('\n');
-    if (lines.size() <= kMaxDisplayLinesPerMessage && !truncated) {
-        return limited;
-    }
-
-    const int take = (lines.size() < kMaxDisplayLinesPerMessage)
-        ? static_cast<int>(lines.size())
-        : kMaxDisplayLinesPerMessage;
-    QString out;
-    out.reserve(limited.size());
-    for (int i = 0; i < take; ++i) {
-        if (i) out.append('\n');
-        out.append(lines[i]);
-    }
-
-    out.append("\n… [message tronqué]");
-    return out;
-}
-
 void MainWindow::growHistoryAreaStep() {
     if (!splitter_) return;
     const QList<int> sizes = splitter_->sizes();
@@ -217,10 +184,8 @@ void MainWindow::appendReceivedMessage(const QString &line) {
     // Fait grandir progressivement l'historique jusqu'à 50/50
     growHistoryAreaStep();
 
-    historyAppendCount_ += 1;
-    if ((historyAppendCount_ % kAutoScrollEveryNAppends) == 0) {
-        history_->verticalScrollBar()->setValue(history_->verticalScrollBar()->maximum());
-    }
+    // Toujours défiler en bas pour afficher la dernière notif
+    history_->verticalScrollBar()->setValue(history_->verticalScrollBar()->maximum());
 }
 
 void MainWindow::sendClipboard() {
@@ -294,7 +259,6 @@ void MainWindow::clearHistory() {
     if (history_) {
         history_->clear();
     }
-    lastReceived_.clear();
     lastFullMessageContent_.clear();
 
     if (splitter_) {

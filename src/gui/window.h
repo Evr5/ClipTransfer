@@ -2,7 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QTextEdit>
 #include <QPushButton>
 #include <QPlainTextEdit>
 #include <QClipboard>
@@ -37,18 +36,11 @@ private:
 
     // Backend réseau
     ChatBackend chat_;
-    QString lastReceived_;
     QString lastFullMessageContent_;
-
-    int historyAppendCount_ = 0;
-    static constexpr int kMaxDisplayLinesPerMessage = 50;
-    static constexpr int kMaxDisplayCharsPerMessage = 20000;
-    static constexpr int kAutoScrollEveryNAppends = 1;
     static constexpr int kHistoryGrowStepPx = 24;
 
     void setupUi();
     void appendReceivedMessage(const QString &line);
-    QString truncateForDisplay(const QString& text) const;
     void growHistoryAreaStep();
     bool ensureNickname();
 
