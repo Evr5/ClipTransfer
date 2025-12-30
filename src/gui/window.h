@@ -20,6 +20,7 @@ private slots:
     void sendClipboard();
     void sendManualMessage();
     void copyLastReceived();
+    void clearHistory();
 
 private:
     // UI
@@ -27,6 +28,7 @@ private:
     QPushButton *btnSendClip_ = nullptr;
     QPushButton *btnSendManual_ = nullptr;
     QPushButton *btnCopyLast_ = nullptr;
+    QPushButton *btnClearHistory_ = nullptr;
     QPlainTextEdit *manualInput_  = nullptr;
     QClipboard *clipboard_    = nullptr;
     QString nickname_;

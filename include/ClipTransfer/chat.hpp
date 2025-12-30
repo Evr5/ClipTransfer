@@ -11,6 +11,7 @@
 #include <random>
 #include <cstring>
 #include <iostream>
+#include <cstdint>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -47,6 +48,10 @@ public:
 
     void enqueueMessage(const std::string& text);
 
+    // Efface tout ce que le backend peut retenir en mémoire (file d'envoi,
+    // et états de réassemblage côté réception).
+    void clearHistory();
+
     std::string clientId() const { return clientId_; }
 
     void setNickname(std::string nickname) { nickname_ = std::move(nickname); }
@@ -66,6 +71,9 @@ private:
     std::mutex outMutex_;
     std::condition_variable outCv_;
     std::queue<std::string> outgoing_;
+
+    // Incrémenté pour demander au thread de réception de purger ses états en mémoire.
+    std::atomic<std::uint64_t> clearEpoch_{0};
 
     MessageCallback callback_;
     std::string clientId_;

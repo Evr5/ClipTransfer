@@ -286,6 +286,21 @@ void ChatBackend::enqueueMessage(const std::string& text) {
     outCv_.notify_one();
 }
 
+void ChatBackend::clearHistory() {
+    // Purge immédiate de la file d'envoi
+    {
+        std::lock_guard<std::mutex> lock(outMutex_);
+        std::queue<std::string> empty;
+        outgoing_.swap(empty);
+    }
+
+    // Demande au thread de réception de purger ses états (réassemblage)
+    clearEpoch_.fetch_add(1, std::memory_order_relaxed);
+
+    // Réveille le thread d'envoi si besoin
+    outCv_.notify_all();
+}
+
 void ChatBackend::sendLoop() {
     sockaddr_in dest{};
     dest.sin_family = AF_INET;
@@ -369,8 +384,15 @@ void ChatBackend::recvLoop() {
     char buffer[BUFFER_SIZE];
 
     std::unordered_map<std::string, PendingMessage> pending;
+    std::uint64_t localClearEpoch = clearEpoch_.load(std::memory_order_relaxed);
 
     while (running_) {
+        const std::uint64_t currentEpoch = clearEpoch_.load(std::memory_order_relaxed);
+        if (currentEpoch != localClearEpoch) {
+            pending.clear();
+            localClearEpoch = currentEpoch;
+        }
+
         sockaddr_in src{};
 #ifdef _WIN32
         int srclen = sizeof(src);

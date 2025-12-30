@@ -104,11 +104,13 @@ void MainWindow::setupUi() {
     btnSendClip_ = new QPushButton("Envoyer le presse-papiers", this);
     btnSendManual_ = new QPushButton("Envoyer le texte", this);
     btnCopyLast_ = new QPushButton("Copier dernier reçu", this);
+    btnClearHistory_ = new QPushButton("Effacer conversation", this);
 
     auto *btnRow = new QHBoxLayout();
     btnRow->addWidget(btnSendClip_);
     btnRow->addWidget(btnSendManual_);
     btnRow->addWidget(btnCopyLast_);
+    btnRow->addWidget(btnClearHistory_);
 
     mainLayout->addWidget(title);
     mainLayout->addWidget(history_);
@@ -124,6 +126,9 @@ void MainWindow::setupUi() {
             this,           &MainWindow::sendManualMessage);
     connect(btnCopyLast_,   &QPushButton::clicked,
             this,           &MainWindow::copyLastReceived);
+
+        connect(btnClearHistory_, &QPushButton::clicked,
+            this,             &MainWindow::clearHistory);
 
 
     // Ctrl+Entrée / Ctrl+Enter => envoyer (Enter simple reste une nouvelle ligne)
@@ -216,4 +221,15 @@ bool MainWindow::ensureNickname() {
     }
 
     return true;
+}
+
+void MainWindow::clearHistory() {
+    // GUI
+    if (history_) {
+        history_->clear();
+    }
+    lastReceived_.clear();
+
+    // Backend
+    chat_.clearHistory();
 }
