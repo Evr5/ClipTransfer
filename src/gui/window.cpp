@@ -103,6 +103,14 @@ void MainWindow::setupUi() {
     manualInput_->setTabChangesFocus(true);
     manualInput_->setLineWrapMode(QPlainTextEdit::NoWrap);
 
+    splitter_ = new QSplitter(Qt::Vertical, this);
+    splitter_->setChildrenCollapsible(false);
+    splitter_->addWidget(history_);
+    splitter_->addWidget(manualInput_);
+
+    // Au départ: la saisie prend plus de place
+    splitter_->setSizes({100, 380});
+
     btnSendClip_ = new QPushButton("Envoyer le presse-papiers", this);
     btnSendManual_ = new QPushButton("Envoyer le texte", this);
     btnCopyLast_ = new QPushButton("Copier message complet", this);
@@ -115,8 +123,7 @@ void MainWindow::setupUi() {
     btnRow->addWidget(btnClearHistory_);
 
     mainLayout->addWidget(title);
-    mainLayout->addWidget(history_);
-    mainLayout->addWidget(manualInput_);
+    mainLayout->addWidget(splitter_);
     mainLayout->addLayout(btnRow);
 
     setCentralWidget(central);
@@ -176,11 +183,26 @@ QString MainWindow::truncateForDisplay(const QString& text) const {
     return out;
 }
 
+void MainWindow::growHistoryAreaStep() {
+    if (!splitter_) return;
+    const QList<int> sizes = splitter_->sizes();
+    if (sizes.size() != 2) return;
+
+    const int historyPx = sizes[0];
+    const int inputPx = sizes[1];
+    const int total = historyPx + inputPx;
+    if (total <= 0) return;
+
+    const int half = total / 2;
+    if (historyPx >= half) return;
+
+    const int newHistory = (historyPx + kHistoryGrowStepPx > half) ? half : (historyPx + kHistoryGrowStepPx);
+    splitter_->setSizes({newHistory, total - newHistory});
+}
+
 void MainWindow::appendReceivedMessage(const QString &line) {
     // Désactiver temporairement le rendu pour gagner du temps
     history_->setUpdatesEnabled(false);
-
-    const bool wasAtBottom = (history_->verticalScrollBar()->value() >= history_->verticalScrollBar()->maximum());
 
     QTextCursor cursor = history_->textCursor();
     cursor.movePosition(QTextCursor::End);
@@ -192,8 +214,11 @@ void MainWindow::appendReceivedMessage(const QString &line) {
 
     history_->setUpdatesEnabled(true);
 
+    // Fait grandir progressivement l'historique jusqu'à 50/50
+    growHistoryAreaStep();
+
     historyAppendCount_ += 1;
-    if (wasAtBottom && ((historyAppendCount_ % kAutoScrollEveryNAppends) == 0)) {
+    if ((historyAppendCount_ % kAutoScrollEveryNAppends) == 0) {
         history_->verticalScrollBar()->setValue(history_->verticalScrollBar()->maximum());
     }
 }
@@ -271,6 +296,17 @@ void MainWindow::clearHistory() {
     }
     lastReceived_.clear();
     lastFullMessageContent_.clear();
+
+    if (splitter_) {
+        const QList<int> sizes = splitter_->sizes();
+        if (sizes.size() == 2) {
+            const int total = sizes[0] + sizes[1];
+            const int historySmall = (total > 0) ? std::max(80, total / 5) : 120;
+            splitter_->setSizes({historySmall, std::max(80, total - historySmall)});
+        } else {
+            splitter_->setSizes({120, 360});
+        }
+    }
 
     // Backend
     chat_.clearHistory();

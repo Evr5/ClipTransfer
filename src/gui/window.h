@@ -7,6 +7,7 @@
 #include <QPlainTextEdit>
 #include <QClipboard>
 #include <QString>
+#include <QSplitter>
 
 #include "ClipTransfer/chat.hpp"
 
@@ -24,6 +25,7 @@ private slots:
 
 private:
     // UI
+    QSplitter *splitter_ = nullptr;
     QPlainTextEdit *history_  = nullptr;
     QPushButton *btnSendClip_ = nullptr;
     QPushButton *btnSendManual_ = nullptr;
@@ -41,11 +43,13 @@ private:
     int historyAppendCount_ = 0;
     static constexpr int kMaxDisplayLinesPerMessage = 50;
     static constexpr int kMaxDisplayCharsPerMessage = 20000;
-    static constexpr int kAutoScrollEveryNAppends = 5;
+    static constexpr int kAutoScrollEveryNAppends = 1;
+    static constexpr int kHistoryGrowStepPx = 24;
 
     void setupUi();
     void appendReceivedMessage(const QString &line);
     QString truncateForDisplay(const QString& text) const;
+    void growHistoryAreaStep();
     bool ensureNickname();
 
 protected:
