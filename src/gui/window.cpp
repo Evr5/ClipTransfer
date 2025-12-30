@@ -71,7 +71,8 @@ MainWindow::MainWindow(QWidget *parent)
             // On repasse sur le thread GUI
             QMetaObject::invokeMethod(this, [this, qFrom, qText]() {
                 lastReceived_ = qText;
-                appendReceivedMessage("[" + qFrom + "] : " + qText);
+                lastFullMessageContent_ = qText;
+                appendReceivedMessage("[" + qFrom + "] a envoyé un message.");
             });
         }
     );
@@ -95,6 +96,7 @@ void MainWindow::setupUi() {
     history_ = new QPlainTextEdit(this);
     history_->setReadOnly(true);
     history_->setLineWrapMode(QPlainTextEdit::NoWrap);
+    history_->setMaximumBlockCount(20000);
 
     manualInput_ = new SafePlainTextEdit(this);
     manualInput_->setPlaceholderText("Écrire un message... Ctrl+Entrée pour envoyer le message");
@@ -103,7 +105,7 @@ void MainWindow::setupUi() {
 
     btnSendClip_ = new QPushButton("Envoyer le presse-papiers", this);
     btnSendManual_ = new QPushButton("Envoyer le texte", this);
-    btnCopyLast_ = new QPushButton("Copier dernier reçu", this);
+    btnCopyLast_ = new QPushButton("Copier message complet", this);
     btnClearHistory_ = new QPushButton("Effacer conversation", this);
 
     auto *btnRow = new QHBoxLayout();
@@ -127,7 +129,7 @@ void MainWindow::setupUi() {
     connect(btnCopyLast_,   &QPushButton::clicked,
             this,           &MainWindow::copyLastReceived);
 
-        connect(btnClearHistory_, &QPushButton::clicked,
+    connect(btnClearHistory_, &QPushButton::clicked,
             this,             &MainWindow::clearHistory);
 
 
@@ -143,9 +145,42 @@ void MainWindow::setupUi() {
     }
 }
 
+QString MainWindow::truncateForDisplay(const QString& text) const {
+    if (text.isEmpty()) return text;
+
+    // 1) Limite en caractères (évite les énormes copies côté QTextDocument)
+    QString limited = text;
+    bool truncated = false;
+    if (limited.size() > kMaxDisplayCharsPerMessage) {
+        limited = limited.left(kMaxDisplayCharsPerMessage);
+        truncated = true;
+    }
+
+    // 2) Limite en lignes
+    const QStringList lines = limited.split('\n');
+    if (lines.size() <= kMaxDisplayLinesPerMessage && !truncated) {
+        return limited;
+    }
+
+    const int take = (lines.size() < kMaxDisplayLinesPerMessage)
+        ? static_cast<int>(lines.size())
+        : kMaxDisplayLinesPerMessage;
+    QString out;
+    out.reserve(limited.size());
+    for (int i = 0; i < take; ++i) {
+        if (i) out.append('\n');
+        out.append(lines[i]);
+    }
+
+    out.append("\n… [message tronqué]");
+    return out;
+}
+
 void MainWindow::appendReceivedMessage(const QString &line) {
     // Désactiver temporairement le rendu pour gagner du temps
     history_->setUpdatesEnabled(false);
+
+    const bool wasAtBottom = (history_->verticalScrollBar()->value() >= history_->verticalScrollBar()->maximum());
 
     QTextCursor cursor = history_->textCursor();
     cursor.movePosition(QTextCursor::End);
@@ -156,7 +191,11 @@ void MainWindow::appendReceivedMessage(const QString &line) {
     cursor.endEditBlock();
 
     history_->setUpdatesEnabled(true);
-    history_->ensureCursorVisible();
+
+    historyAppendCount_ += 1;
+    if (wasAtBottom && ((historyAppendCount_ % kAutoScrollEveryNAppends) == 0)) {
+        history_->verticalScrollBar()->setValue(history_->verticalScrollBar()->maximum());
+    }
 }
 
 void MainWindow::sendClipboard() {
@@ -164,8 +203,9 @@ void MainWindow::sendClipboard() {
     QString text = clipboard_->text();
     if (text.isEmpty()) return;
 
+    lastFullMessageContent_ = text;
     chat_.enqueueMessage(text.toStdString());
-    appendReceivedMessage("[" + nickname_ + "] : " + text);
+    appendReceivedMessage("[" + nickname_ + "] a envoyé un message.");
 }
 
 void MainWindow::sendManualMessage() {
@@ -173,14 +213,15 @@ void MainWindow::sendManualMessage() {
     if (text.trimmed().isEmpty()) return;
 
     manualInput_->clear();
+    lastFullMessageContent_ = text;
     chat_.enqueueMessage(text.toStdString());
-    appendReceivedMessage("[" + nickname_ + "] : " + text);
+    appendReceivedMessage("[" + nickname_ + "] a envoyé un message.");
 }
 
 void MainWindow::copyLastReceived() {
     if (!clipboard_) return;
-    if (lastReceived_.isEmpty()) return;
-    clipboard_->setText(lastReceived_);
+    if (lastFullMessageContent_.isEmpty()) return;
+    clipboard_->setText(lastFullMessageContent_);
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
@@ -229,6 +270,7 @@ void MainWindow::clearHistory() {
         history_->clear();
     }
     lastReceived_.clear();
+    lastFullMessageContent_.clear();
 
     // Backend
     chat_.clearHistory();
