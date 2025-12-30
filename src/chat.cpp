@@ -1,5 +1,6 @@
 #include "ClipTransfer/chat.hpp"
 #include <sys/types.h>
+#include <limits>
 
 std::string generate_client_id() {
     static const char chars[] = "0123456789abcdef";
@@ -155,11 +156,19 @@ void ChatBackend::sendLoop() {
             lock.unlock();
 
             std::string packet = clientId_ + "|" + nickname_ + "|" + text;
-            size_t len = packet.size();
+            const size_t len = packet.size();
+
+            if (len > static_cast<size_t>(std::numeric_limits<int>::max())) {
+                std::cerr << "packet too large for sendto()\n";
+                lock.lock();
+                continue;
+            }
+
+            const int lenInt = static_cast<int>(len);
 
             ssize_t sent = ::sendto(sockfd_,
                                 packet.data(),
-                                len,
+                                lenInt,
                                 0,
                                 reinterpret_cast<sockaddr*>(&dest),
                                 sizeof(dest));

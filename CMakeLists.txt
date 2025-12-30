@@ -108,7 +108,6 @@ set_target_properties(ClipTransfer PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Position-independent code for shared libraries
 if(WIN32)
-    add_compile_definitions(_WIN32_WINNT=0x0600) # Define the minimum Windows version for compatibility
     add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>") # force source encoding to UTF-8 (for Qt, etc.)
     set_target_properties(ClipTransfer PROPERTIES WIN32_EXECUTABLE ON) # Create a GUI application (no console window)
     target_link_libraries(ClipTransfer # Link against Windows libraries
@@ -135,13 +134,11 @@ endif()
 # Include directories
 target_include_directories(ClipTransfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
-# Find and link Qt5
-find_package(Qt5 COMPONENTS Widgets REQUIRED)
+# Find and link Qt6
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 target_link_libraries(ClipTransfer
     PRIVATE
-        Qt5::Widgets
-        Qt5::Gui
-        Qt5::Core
+        Qt6::Widgets
 )
 
 # Installation

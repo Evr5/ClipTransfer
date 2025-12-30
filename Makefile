@@ -24,15 +24,15 @@ all: release
 
 debug:
 	@$(CMAKE) -S . -B $(BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Debug -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-	@$(CMAKE) --build $(BUILD_DIR) -- -j$(CORES)
+	@$(CMAKE) --build $(BUILD_DIR) --parallel $(CORES)
 
 release:
 	@$(CMAKE) -S . -B $(BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Release -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-	@$(CMAKE) --build $(BUILD_DIR) -- -j$(CORES)
+	@$(CMAKE) --build $(BUILD_DIR) --parallel $(CORES)
 
 static:
 	@$(CMAKE) -S . -B $(STATIC_BUILD_DIR) -G $(GENERATOR) -DCMAKE_BUILD_TYPE=Release -DBUILD_STATIC=ON -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=$(abspath $(OUTPUT_DIR)) -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-	@$(CMAKE) --build $(STATIC_BUILD_DIR) --config Release -j$(CORES)
+	@$(CMAKE) --build $(STATIC_BUILD_DIR) --config Release --parallel $(CORES)
 
 install:
 	@$(CMAKE) --install $(BUILD_DIR)

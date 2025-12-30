@@ -28,6 +28,8 @@
 
 Note: Requires a C++17-compatible compiler and CMake.
 
+Note: The GUI requires Qt6 (Qt Widgets development package).
+
 ## 🧩 Snapcraft (All Linux Distros with Snap Support)
 
 ClipTransfer is available on the Snap Store and can be installed easily on **any Linux distribution** that supports [Snap](https://snapcraft.io/docs/installing-snapd):
