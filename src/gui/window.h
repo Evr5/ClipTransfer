@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QTextEdit>
 #include <QPushButton>
-#include <QLineEdit>
+#include <QPlainTextEdit>
 #include <QClipboard>
 #include <QString>
 
@@ -23,11 +23,11 @@ private slots:
 
 private:
     // UI
-    QTextEdit  *history_      = nullptr;
+    QPlainTextEdit *history_  = nullptr;
     QPushButton *btnSendClip_ = nullptr;
     QPushButton *btnSendManual_ = nullptr;
     QPushButton *btnCopyLast_ = nullptr;
-    QLineEdit  *manualInput_  = nullptr;
+    QPlainTextEdit *manualInput_  = nullptr;
     QClipboard *clipboard_    = nullptr;
     QString nickname_;
 

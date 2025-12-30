@@ -11,6 +11,44 @@
 #include <QSettings>
 #include <QTimer>
 #include <QMessageBox>
+#include <QShortcut>
+#include <QKeySequence>
+#include <QMimeData>
+#include <QTextDocument>
+
+namespace {
+
+class SafePlainTextEdit final : public QPlainTextEdit {
+public:
+    explicit SafePlainTextEdit(QWidget* parent = nullptr) : QPlainTextEdit(parent) {}
+
+protected:
+    void insertFromMimeData(const QMimeData* source) {
+        if (!source || !source->hasText()) {
+            QPlainTextEdit::insertFromMimeData(source);
+            return;
+        }
+
+        QString text = source->text();
+
+        fastPaste(text);
+    }
+
+private:
+    void fastPaste(const QString& text) {
+        setUpdatesEnabled(false);
+        bool oldUndoRedo = isUndoRedoEnabled();
+        setUndoRedoEnabled(false); // Indispensable pour les gros volumes
+
+        // On remplace tout le contenu ou on insère à la position actuelle
+        this->appendPlainText(text); 
+
+        setUndoRedoEnabled(oldUndoRedo);
+        setUpdatesEnabled(true);
+    }
+};
+
+}
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -54,11 +92,14 @@ void MainWindow::setupUi() {
     auto *title = new QLabel("ClipTransfer – Chat LAN (UDP broadcast)", this);
     title->setStyleSheet("font-weight: bold; font-size: 16px;");
 
-    history_ = new QTextEdit(this);
+    history_ = new QPlainTextEdit(this);
     history_->setReadOnly(true);
+    history_->setLineWrapMode(QPlainTextEdit::NoWrap);
 
-    manualInput_ = new QLineEdit(this);
-    manualInput_->setPlaceholderText("Écrire un message...");
+    manualInput_ = new SafePlainTextEdit(this);
+    manualInput_->setPlaceholderText("Écrire un message... Ctrl+Entrée pour envoyer le message");
+    manualInput_->setTabChangesFocus(true);
+    manualInput_->setLineWrapMode(QPlainTextEdit::NoWrap);
 
     btnSendClip_ = new QPushButton("Envoyer le presse-papiers", this);
     btnSendManual_ = new QPushButton("Envoyer le texte", this);
@@ -84,14 +125,33 @@ void MainWindow::setupUi() {
     connect(btnCopyLast_,   &QPushButton::clicked,
             this,           &MainWindow::copyLastReceived);
 
-    connect(manualInput_, &QLineEdit::returnPressed,
-            this,         &MainWindow::sendManualMessage);
+
+    // Ctrl+Entrée / Ctrl+Enter => envoyer (Enter simple reste une nouvelle ligne)
+    {
+        auto *sendShortcut1 = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Return), this);
+        sendShortcut1->setContext(Qt::WidgetWithChildrenShortcut);
+        connect(sendShortcut1, &QShortcut::activated, this, &MainWindow::sendManualMessage);
+
+        auto *sendShortcut2 = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Enter), this);
+        sendShortcut2->setContext(Qt::WidgetWithChildrenShortcut);
+        connect(sendShortcut2, &QShortcut::activated, this, &MainWindow::sendManualMessage);
+    }
 }
 
 void MainWindow::appendReceivedMessage(const QString &line) {
-    history_->append(line);
-    auto *bar = history_->verticalScrollBar();
-    bar->setValue(bar->maximum());
+    // Désactiver temporairement le rendu pour gagner du temps
+    history_->setUpdatesEnabled(false);
+
+    QTextCursor cursor = history_->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    
+    // beginEditBlock dit à Qt : "Ne recalcule rien tant que je n'ai pas fini"
+    cursor.beginEditBlock();
+    cursor.insertText(line + "\n");
+    cursor.endEditBlock();
+
+    history_->setUpdatesEnabled(true);
+    history_->ensureCursorVisible();
 }
 
 void MainWindow::sendClipboard() {
@@ -104,8 +164,8 @@ void MainWindow::sendClipboard() {
 }
 
 void MainWindow::sendManualMessage() {
-    QString text = manualInput_->text();
-    if (text.isEmpty()) return;
+    QString text = manualInput_->toPlainText();
+    if (text.trimmed().isEmpty()) return;
 
     manualInput_->clear();
     chat_.enqueueMessage(text.toStdString());
