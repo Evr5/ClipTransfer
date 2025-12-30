@@ -70,13 +70,13 @@ MainWindow::MainWindow(QWidget *parent)
             // On repasse sur le thread GUI
             QMetaObject::invokeMethod(this, [this, qFrom, qText]() {
                 lastFullMessageContent_ = qText;
-                appendReceivedMessage("[" + qFrom + "] a envoyé un message.");
+                appendReceivedMessage(tr("[%1] a envoyé un message.").arg(qFrom));
             });
         }
     );
 
     if (!ok) {
-        appendReceivedMessage("[Erreur] Impossible de démarrer le chat réseau.");
+        appendReceivedMessage(tr("[Erreur] Impossible de démarrer le chat réseau."));
     }
 }
 
@@ -88,7 +88,7 @@ void MainWindow::setupUi() {
     auto *central = new QWidget(this);
     auto *mainLayout = new QVBoxLayout(central);
 
-    auto *title = new QLabel("ClipTransfer – Chat LAN (UDP broadcast)", this);
+    auto *title = new QLabel(tr("ClipTransfer – Chat LAN (UDP broadcast)"), this);
     title->setStyleSheet("font-weight: bold; font-size: 16px;");
 
     history_ = new QPlainTextEdit(this);
@@ -97,7 +97,7 @@ void MainWindow::setupUi() {
     history_->setMaximumBlockCount(20000);
 
     manualInput_ = new SafePlainTextEdit(this);
-    manualInput_->setPlaceholderText("Écrire un message... Ctrl+Entrée pour envoyer le message");
+    manualInput_->setPlaceholderText(tr("Écrire un message... Ctrl+Entrée pour envoyer le message"));
     manualInput_->setTabChangesFocus(true);
     manualInput_->setLineWrapMode(QPlainTextEdit::NoWrap);
 
@@ -109,10 +109,10 @@ void MainWindow::setupUi() {
     // Au départ: la saisie prend plus de place
     splitter_->setSizes({100, 380});
 
-    btnSendClip_ = new QPushButton("Envoyer le presse-papiers", this);
-    btnSendManual_ = new QPushButton("Envoyer le texte", this);
-    btnCopyLast_ = new QPushButton("Copier message complet", this);
-    btnClearHistory_ = new QPushButton("Effacer conversation", this);
+    btnSendClip_ = new QPushButton(tr("Envoyer le presse-papiers"), this);
+    btnSendManual_ = new QPushButton(tr("Envoyer le texte"), this);
+    btnCopyLast_ = new QPushButton(tr("Copier message complet"), this);
+    btnClearHistory_ = new QPushButton(tr("Effacer conversation"), this);
 
     auto *btnRow = new QHBoxLayout();
     btnRow->addWidget(btnSendClip_);
@@ -195,7 +195,7 @@ void MainWindow::sendClipboard() {
 
     lastFullMessageContent_ = text;
     chat_.enqueueMessage(text.toStdString());
-    appendReceivedMessage("[" + nickname_ + "] a envoyé un message.");
+    appendReceivedMessage(tr("[%1] a envoyé un message.").arg(nickname_));
 }
 
 void MainWindow::sendManualMessage() {
@@ -205,7 +205,7 @@ void MainWindow::sendManualMessage() {
     manualInput_->clear();
     lastFullMessageContent_ = text;
     chat_.enqueueMessage(text.toStdString());
-    appendReceivedMessage("[" + nickname_ + "] a envoyé un message.");
+    appendReceivedMessage(tr("[%1] a envoyé un message.").arg(nickname_));
 }
 
 void MainWindow::copyLastReceived() {
@@ -227,8 +227,8 @@ bool MainWindow::ensureNickname() {
         bool ok = false;
         QString value = QInputDialog::getText(
             this,
-            "Choisir un pseudo",
-            "Entrez votre pseudo (obligatoire) :",
+            tr("Choisir un pseudo"),
+            tr("Entrez votre pseudo (obligatoire) :"),
             QLineEdit::Normal,
             "",
             &ok
@@ -243,7 +243,7 @@ bool MainWindow::ensureNickname() {
             continue;
         }
         if (value.contains('|')) {
-            QMessageBox::warning(this, "Pseudo invalide", "Le caractère '|' n'est pas autorisé.");
+            QMessageBox::warning(this, tr("Pseudo invalide"), tr("Le caractère '|' n'est pas autorisé."));
             continue;
         }
 

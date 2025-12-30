@@ -135,11 +135,28 @@ endif()
 target_include_directories(ClipTransfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
 # Find and link Qt6
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets LinguistTools)
 target_link_libraries(ClipTransfer
     PRIVATE
         Qt6::Widgets
 )
 
+# Translations
+set(TS_FILES
+    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_en.ts
+)
+
+qt_add_translations(ClipTransfer
+    TS_FILES ${TS_FILES}
+    QM_FILES_OUTPUT_VARIABLE QM_FILES
+)
+
+add_custom_command(TARGET ClipTransfer POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:ClipTransfer>/i18n
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${QM_FILES} $<TARGET_FILE_DIR:ClipTransfer>/i18n
+    VERBATIM
+)
+
 # Installation
 install(TARGETS ClipTransfer RUNTIME DESTINATION bin)
+install(FILES ${QM_FILES} DESTINATION bin/i18n)
