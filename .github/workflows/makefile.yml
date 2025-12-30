@@ -17,7 +17,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake make git g++ qtbase5-dev
+        sudo apt-get install -y cmake make git g++ qtbase6-dev
         
     - name: Build with Make
       run: |
