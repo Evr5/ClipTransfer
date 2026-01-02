@@ -7,7 +7,7 @@
 #define MyAppExeName "ClipTransfer.exe"
 #define MyAppPublisher "Evr5"
 #define MyAppURL "https://github.com/Evr5/ClipTransfer"
-#define MyAppVersion "3.0.0"
+#define MyAppVersion "2.1.0"
 
 ; Paths (robust, based on this .iss file location)
 #define RepoRoot SourcePath + "..\\"
