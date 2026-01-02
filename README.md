@@ -4,7 +4,6 @@
 
 ## ✨ Features
 
-- 📡 Automatic server/client role detection
 - 🔄 Instant LAN-based text transfer
 - 🖥️ Cross-platform compatible (Linux, Windows, macOS)
 - 💡 Ideal for clipboard sharing, text syncing, quick notes
@@ -58,7 +57,7 @@ Choose the one that suits your preference:
 
 ## 🖥️ Windows Users
 
-If you prefer not to compile the project, you can directly download and run the precompiled [ClipTransfer.exe](https://github.com/Evr5/ClipTransfer/releases/download/V2.0.0/ClipTransfer.exe).
+If you prefer not to compile the project, you can directly download and run the installer [ClipTransfer-Setup-2.1.0.exe](https://github.com/Evr5/ClipTransfer/releases/download/v2.1.0/ClipTransfer-Setup-2.1.0.exe).
 
 > ⚠️ **Important**: On first launch, Windows Defender SmartScreen may block the app because it's not signed.
 >
