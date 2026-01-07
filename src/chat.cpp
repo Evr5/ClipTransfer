@@ -9,6 +9,12 @@
 #include <chrono>
 #include <random>
 #include <string_view>
+#include <set>
+
+#ifndef _WIN32
+    #include <ifaddrs.h>
+    #include <net/if.h>
+#endif
 
 namespace {
 
@@ -306,11 +312,70 @@ void ChatBackend::clearHistory() {
     outCv_.notify_all();
 }
 
+std::vector<sockaddr_in> ChatBackend::broadcastDestinations() const {
+    std::vector<sockaddr_in> out;
+
+    auto push_addr = [&out](uint32_t addr_be) {
+        sockaddr_in dest{};
+        dest.sin_family = AF_INET;
+        dest.sin_port = htons(PORT);
+        dest.sin_addr.s_addr = addr_be;
+        out.push_back(dest);
+    };
+
+#ifdef _WIN32
+    // Limited broadcast is usually sufficient on Windows.
+    push_addr(inet_addr(BROADCAST_ADDR));
+    return out;
+#else
+    std::set<uint32_t> seen;
+
+    // Always keep a fallback (limited broadcast).
+    {
+        const uint32_t limited = inet_addr(BROADCAST_ADDR);
+        if (limited != INADDR_NONE) {
+            seen.insert(limited);
+        }
+    }
+
+    ifaddrs* ifs = nullptr;
+    if (getifaddrs(&ifs) != 0 || !ifs) {
+        // fallback only
+        for (uint32_t a : seen) push_addr(a);
+        return out;
+    }
+
+    for (ifaddrs* it = ifs; it != nullptr; it = it->ifa_next) {
+        if (!it->ifa_addr) continue;
+        if (it->ifa_addr->sa_family != AF_INET) continue;
+
+        const unsigned int flags = it->ifa_flags;
+        if ((flags & IFF_UP) == 0) continue;
+        if ((flags & IFF_LOOPBACK) != 0) continue;
+
+        // Prefer explicit broadcast addr when available.
+        if ((flags & IFF_BROADCAST) != 0 && it->ifa_broadaddr) {
+            auto* b = reinterpret_cast<sockaddr_in*>(it->ifa_broadaddr);
+            const uint32_t addr_be = b->sin_addr.s_addr;
+            if (addr_be != 0 && addr_be != INADDR_NONE) {
+                seen.insert(addr_be);
+            }
+        }
+    }
+
+    freeifaddrs(ifs);
+
+    for (uint32_t a : seen) push_addr(a);
+    return out;
+#endif
+}
+
 void ChatBackend::sendLoop() {
-    sockaddr_in dest{};
-    dest.sin_family = AF_INET;
-    dest.sin_port = htons(PORT);
-    dest.sin_addr.s_addr = inet_addr(BROADCAST_ADDR);
+    const auto dests = broadcastDestinations();
+    if (dests.empty()) {
+        std::cerr << "no broadcast destinations\n";
+        return;
+    }
 
     while (true) {
         std::unique_lock<std::mutex> lock(outMutex_);
@@ -373,10 +438,11 @@ void ChatBackend::sendLoop() {
                 }
 
                 const int lenInt = static_cast<int>(packet.size());
-                ssize_t sent = ::sendto(sockfd_, packet.data(), lenInt, 0, reinterpret_cast<sockaddr*>(&dest), sizeof(dest));
-
-                if (sent < 0) {
-                    std::cerr << "sendto() failed\n";
+                for (const auto& dest : dests) {
+                    ssize_t sent = ::sendto(sockfd_, packet.data(), lenInt, 0, reinterpret_cast<const sockaddr*>(&dest), sizeof(dest));
+                    if (sent < 0) {
+                        std::cerr << "sendto() failed\n";
+                    }
                 }
             }
 

@@ -1,0 +1,13 @@
+<RCC>
+  <qresource prefix="/">
+    <file>Main.qml</file>
+    <file alias="i18n/ClipTransfer_en.qm">../i18n/ClipTransfer_en.qm</file>
+    <file alias="i18n/ClipTransfer_es.qm">../i18n/ClipTransfer_es.qm</file>
+    <file alias="i18n/ClipTransfer_pt.qm">../i18n/ClipTransfer_pt.qm</file>
+    <file alias="i18n/ClipTransfer_de.qm">../i18n/ClipTransfer_de.qm</file>
+    <file alias="i18n/ClipTransfer_nl.qm">../i18n/ClipTransfer_nl.qm</file>
+    <file alias="i18n/ClipTransfer_zh.qm">../i18n/ClipTransfer_zh.qm</file>
+    <file alias="i18n/ClipTransfer_ar.qm">../i18n/ClipTransfer_ar.qm</file>
+    <file alias="i18n/ClipTransfer_pl.qm">../i18n/ClipTransfer_pl.qm</file>
+  </qresource>
+</RCC>

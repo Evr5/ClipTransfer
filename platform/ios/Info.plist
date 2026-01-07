@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDisplayName</key>
+    <string>ClipTransfer</string>
+
+    <!-- iOS 14+: required to access devices on local network -->
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>ClipTransfer a besoin d'accéder au réseau local pour découvrir et échanger le presse-papiers avec les autres appareils.</string>
+</dict>
+</plist>

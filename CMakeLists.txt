@@ -84,26 +84,89 @@ else()
     )
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_options(-g)
-        if(NOT (WIN32 AND NOT MSVC)) # Address and undefined behavior sanitizers are not supported on MSVC
-            add_compile_options(-fsanitize=address,undefined)
-            add_link_options(-fsanitize=address,undefined)
+        # Sanitizers are great on desktop, but they are often problematic/unavailable on mobile toolchains.
+        if(NOT ANDROID AND NOT IOS)
+            if(NOT (WIN32 AND NOT MSVC)) # Address and undefined behavior sanitizers are not supported on MSVC
+                add_compile_options(-fsanitize=address,undefined)
+                add_link_options(-fsanitize=address,undefined)
+            endif()
         endif()
     else()
         add_compile_options(-O3 -DNDEBUG)
     endif()
 endif()
 
-# Source and include directories
-file(GLOB_RECURSE SOURCES
-    src/*.cpp
-)
-
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+
+# ---- Core library (shared between desktop and mobile) ----
+add_library(ClipTransferCore
+    src/chat.cpp
+)
+set_target_properties(ClipTransferCore PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(ClipTransferCore PUBLIC ${CMAKE_SOURCE_DIR}/include)
+
+# Find and link Qt6 (Core always; UI depends on platform)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui LinguistTools)
+target_link_libraries(ClipTransferCore PRIVATE Qt6::Core)
+
+# ---- App target (desktop Widgets OR mobile Qt Quick) ----
 set(RESOURCES "")
 if (WIN32)
     set(RESOURCES ${CMAKE_SOURCE_DIR}/res/resource.rc)
 endif()
-add_executable(ClipTransfer ${SOURCES} ${RESOURCES})
+
+if(ANDROID OR IOS)
+    # Mobile
+    find_package(Qt6 REQUIRED COMPONENTS Qml Quick)
+
+    qt_add_executable(ClipTransfer
+        MANUAL_FINALIZATION
+        src/mobile/main.cpp
+        src/mobile/chat_controller.cpp
+        ${RESOURCES}
+        res/mobile.qrc
+    )
+    target_link_libraries(ClipTransfer
+        PRIVATE
+            ClipTransferCore
+            Qt6::Core
+            Qt6::Gui
+            Qt6::Qml
+            Qt6::Quick
+    )
+
+    # Android packaging hooks (manifest/Java sources)
+    if(ANDROID)
+        set_property(TARGET ClipTransfer PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
+            ${CMAKE_SOURCE_DIR}/platform/android)
+    endif()
+
+    # iOS: allow providing a custom Info.plist
+    if(IOS)
+        set_target_properties(ClipTransfer PROPERTIES
+            MACOSX_BUNDLE ON
+            MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/platform/ios/Info.plist
+        )
+    endif()
+
+    qt_finalize_executable(ClipTransfer)
+else()
+    # Desktop (Widgets)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets)
+
+    add_executable(ClipTransfer
+        src/main.cpp
+        src/gui/window.cpp
+        ${RESOURCES}
+    )
+    target_include_directories(ClipTransfer PRIVATE ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries(ClipTransfer
+        PRIVATE
+            ClipTransferCore
+            Qt6::Widgets
+    )
+endif()
 set_target_properties(ClipTransfer PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Position-independent code for shared libraries
@@ -131,39 +194,38 @@ if (WIN32 AND CMAKE_BUILD_TYPE STREQUAL "Debug")
     set_target_properties(ClipTransfer PROPERTIES WIN32_EXECUTABLE OFF)
 endif()
 
+
 # Include directories
 target_include_directories(ClipTransfer PRIVATE ${CMAKE_SOURCE_DIR}/include)
 
-# Find and link Qt6
-find_package(Qt6 REQUIRED COMPONENTS Widgets LinguistTools)
-target_link_libraries(ClipTransfer
-    PRIVATE
-        Qt6::Widgets
-)
+# Translations (desktop-style deployment). On Android/iOS, translations should be packaged as assets/resources,
+# not copied next to the binary, so we skip this for mobile builds.
+if(NOT ANDROID AND NOT IOS)
+    set(TS_FILES
+        ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_en.ts
+        ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_es.ts
+        ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_pt.ts
+        ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_de.ts
+        ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_nl.ts
+        ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_zh.ts
+        ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_ar.ts
+        ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_pl.ts
+    )
 
-# Translations
-set(TS_FILES
-    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_en.ts
-    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_es.ts
-    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_pt.ts
-    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_de.ts
-    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_nl.ts
-    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_zh.ts
-    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_ar.ts
-    ${CMAKE_SOURCE_DIR}/res/i18n/ClipTransfer_pl.ts
-)
+    qt_add_translations(ClipTransfer
+        TS_FILES ${TS_FILES}
+        QM_FILES_OUTPUT_VARIABLE QM_FILES
+    )
 
-qt_add_translations(ClipTransfer
-    TS_FILES ${TS_FILES}
-    QM_FILES_OUTPUT_VARIABLE QM_FILES
-)
+    add_custom_command(TARGET ClipTransfer POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:ClipTransfer>/i18n
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${QM_FILES} $<TARGET_FILE_DIR:ClipTransfer>/i18n
+        VERBATIM
+    )
+endif()
 
-add_custom_command(TARGET ClipTransfer POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:ClipTransfer>/i18n
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${QM_FILES} $<TARGET_FILE_DIR:ClipTransfer>/i18n
-    VERBATIM
-)
-
-# Installation
-install(TARGETS ClipTransfer RUNTIME DESTINATION bin)
-install(FILES ${QM_FILES} DESTINATION bin/i18n)
+# Installation (desktop only)
+if(NOT ANDROID AND NOT IOS)
+    install(TARGETS ClipTransfer RUNTIME DESTINATION bin)
+    install(FILES ${QM_FILES} DESTINATION bin/i18n)
+endif()

@@ -9,6 +9,7 @@
 #include <queue>
 #include <functional>
 #include <cstdint>
+#include <vector>
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -58,6 +59,8 @@ private:
     
     void recvLoop();
     void sendLoop();
+
+    std::vector<sockaddr_in> broadcastDestinations() const;
 
     SOCKET sockfd_{INVALID_SOCKET};
     std::atomic<bool> running_{false};

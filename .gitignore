@@ -1,6 +1,9 @@
 .cache
+.vscode
 build
 build-static
+build-android-arm64
+build-android-arm64-debug
 bin
 /dist/
 /i18n/*.qm
