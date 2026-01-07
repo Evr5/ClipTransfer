@@ -1,5 +1,6 @@
 .cache
 .vscode
+.venv
 build
 build-static
 build-android-arm64

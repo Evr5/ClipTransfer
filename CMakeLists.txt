@@ -148,6 +148,23 @@ if(ANDROID OR IOS)
             MACOSX_BUNDLE ON
             MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/platform/ios/Info.plist
         )
+
+        set(IOS_ICON_FILES
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-20@2x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-20@3x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-29@2x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-29@3x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-40@2x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-40@3x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-60@2x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-60@3x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-76@1x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-76@2x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-83.5@2x.png
+            ${CMAKE_SOURCE_DIR}/platform/ios/icons/Icon-1024.png
+        )
+        target_sources(ClipTransfer PRIVATE ${IOS_ICON_FILES})
+        set_source_files_properties(${IOS_ICON_FILES} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
     endif()
 
     qt_finalize_executable(ClipTransfer)

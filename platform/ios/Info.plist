@@ -5,6 +5,28 @@
     <key>CFBundleDisplayName</key>
     <string>ClipTransfer</string>
 
+    <key>CFBundleIcons</key>
+    <dict>
+        <key>CFBundlePrimaryIcon</key>
+        <dict>
+            <key>CFBundleIconFiles</key>
+            <array>
+                <string>Icon-20@2x</string>
+                <string>Icon-20@3x</string>
+                <string>Icon-29@2x</string>
+                <string>Icon-29@3x</string>
+                <string>Icon-40@2x</string>
+                <string>Icon-40@3x</string>
+                <string>Icon-60@2x</string>
+                <string>Icon-60@3x</string>
+                <string>Icon-76@1x</string>
+                <string>Icon-76@2x</string>
+                <string>Icon-83.5@2x</string>
+                <string>Icon-1024</string>
+            </array>
+        </dict>
+    </dict>
+
     <!-- iOS 14+: required to access devices on local network -->
     <key>NSLocalNetworkUsageDescription</key>
     <string>ClipTransfer a besoin d'accéder au réseau local pour découvrir et échanger le presse-papiers avec les autres appareils.</string>

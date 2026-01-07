@@ -7,7 +7,10 @@
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
-    <application android:label="ClipTransfer">
+    <application
+        android:label="ClipTransfer"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round">
         <!-- Required by QtLoader to load the app's native library. -->
         <meta-data android:name="android.app.lib_name" android:value="ClipTransfer" />
         <activity android:name="org.qtproject.qt.android.bindings.QtActivity"
